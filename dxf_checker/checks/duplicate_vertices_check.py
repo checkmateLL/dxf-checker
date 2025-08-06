@@ -1,5 +1,5 @@
-from checks.base import SegmentCheck
-from config import ERROR_LAYERS, ERROR_COLORS
+from dxf_checker.checks.base import SegmentCheck
+from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
 import math
 
 class DuplicateVerticesCheck(SegmentCheck):

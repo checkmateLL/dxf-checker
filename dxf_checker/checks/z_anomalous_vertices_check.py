@@ -1,4 +1,6 @@
-from checks.base import SegmentCheck
+from dxf_checker.checks.base import SegmentCheck
+from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
+import math
 
 class ZAnomalousVerticesCheck(SegmentCheck):
     def __init__(self, threshold: float = 0.04, verbose: bool = False):

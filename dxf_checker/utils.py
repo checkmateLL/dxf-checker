@@ -6,19 +6,55 @@ from dxf_checker import config
 from dxf_checker.logger import log
 
 
-def load_checks(check_names):
+def load_checks(check_names, check_params=None):
     """
     Dynamically load check classes based on names passed from CLI.
     """
+    if check_params is None:
+        check_params = {}
+    
     checks = []
+    check_mapping = {
+        "too_long": ("too_long_check", "TooLongCheck"),
+        "too_short": ("too_short_check", "TooShortCheck"),
+        "duplicates": ("duplicate_vertices_check", "DuplicateVerticesCheck"),
+        "z_anomaly": ("z_anomalous_vertices_check", "ZAnomalousVerticesCheck"),
+        "crossing": ("crossing_check", "UnconnectedCrossingCheck")
+    }
+    
     for name in check_names:
+        if name not in check_mapping:
+            log(f"❌ Unknown check '{name}'. Available: {list(check_mapping.keys())}", level="ERROR")
+            continue
+            
+        module_name, class_name = check_mapping[name]
         try:
-            module = import_module(f"dxf_checker.checks.{name}_check")
-            class_name = "".join([part.capitalize() for part in name.split("_")]) + "Check"
+            module = import_module(f"dxf_checker.checks.{module_name}")
             check_class = getattr(module, class_name)
-            checks.append(check_class())
+            
+            # Initialize with appropriate parameters
+            if name == "too_long":
+                check = check_class(
+                    max_distance=check_params.get('max_distance', 50.0),
+                    units_scale=check_params.get('units_scale', 1.0),
+                    verbose=check_params.get('verbose', False)
+                )
+            elif name == "too_short":
+                check = check_class(
+                    min_distance=check_params.get('min_distance', 0.05),
+                    units_scale=check_params.get('units_scale', 1.0),
+                    verbose=check_params.get('verbose', False)
+                )
+            else:
+                # For other checks, just pass verbose flag for now
+                check = check_class(verbose=check_params.get('verbose', False))
+            
+            checks.append(check)
+            log(f"✅ Loaded check: {class_name}")
+            
         except (ModuleNotFoundError, AttributeError) as e:
             log(f"❌ Could not load check '{name}': {e}", level="ERROR")
+    
     return checks
 
 

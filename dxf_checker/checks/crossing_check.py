@@ -1,4 +1,5 @@
-from checks.base import SegmentCheck
+from dxf_checker.checks.base import SegmentCheck
+from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
 import math
 from itertools import combinations
 

@@ -1,0 +1,10 @@
+=== DXF Checker Log (20250806_1819) ===
+
+[INFO] Input DXF: delivery2.dxf
+[INFO] Checks enabled: ['too_long']
+[INFO] Found 23 linear entities
+[ERROR] ❌ Could not load check 'too_long': module 'dxf_checker.checks.too_long_check' has no attribute 'TooLongCheck'
+[INFO] ✅ Saved output to: delivery2_errors.dxf
+[INFO] 
+=== Check Summary ===
+[INFO] 🎉 No issues detected.

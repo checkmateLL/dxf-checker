@@ -28,6 +28,15 @@ def parse_args():
     parser.add_argument(
         "--verbose", action="store_true", help="Save detailed report"
     )
+    parser.add_argument(
+        "--max_dist", type=float, default=50.0, help="Max segment length for too_long check (meters)"
+    )
+    parser.add_argument(
+        "--min_dist", type=float, default=0.05, help="Min segment length for too_short check (meters)"
+    )
+    parser.add_argument(
+        "--scale", type=float, default=1.0, help="Scale factor for measurements"
+    )
     return parser.parse_args()
 
 
@@ -46,7 +55,7 @@ def main(cli_args=None):
     try:
         doc = ezdxf.readfile(args.input_file)
     except IOError as e:
-        log(f"❌ Failed to read DXF file: {e}")
+        log(f"❌ Failed to read DXF file: {e}", level="ERROR")
         sys.exit(1)
 
     msp = doc.modelspace()
@@ -54,11 +63,19 @@ def main(cli_args=None):
     log(f"Found {len(entities)} linear entities")
 
     # Load and run selected checks
-    checks = load_checks(args.checks)
+    check_params = {
+        'verbose': args.verbose,
+        'max_distance': args.max_dist,
+        'min_distance': args.min_dist,
+        'units_scale': args.scale
+    }
+    
+    checks = load_checks(args.checks, check_params)
     error_count = 0
 
     for check in checks:
-        check.run(entities)
+        log(f"Running {check.__class__.__name__}...")
+        check.run(entities, doc)
         error_count += check.get_error_count()
 
     # Output file

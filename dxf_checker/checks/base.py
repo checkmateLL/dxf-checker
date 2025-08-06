@@ -12,11 +12,14 @@ class SegmentCheck(ABC):
         self.error_count = 0
 
     @abstractmethod
-    def run(self, entity: Any, points: List[Tuple[float, float, float]], output_msp: Any) -> None:
+    def run(self, entities: List[Any], doc: Any = None) -> None:
         """
-        Perform the check on a DXF entity and its points.
-        - entity: the original DXF entity
-        - points: list of 3D points from the entity
-        - output_msp: modelspace for placing error markers if needed
+        Perform the check on DXF entities.
+        - entities: list of DXF entities to check
+        - doc: DXF document for creating error markers
         """
         pass
+
+    def get_error_count(self) -> int:
+        """Get the number of errors found by this check"""
+        return self.error_count
