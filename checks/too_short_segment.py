@@ -34,7 +34,7 @@ class TooShortSegmentCheck(SegmentCheck):
                 midpoint = tuple((p1[j] + p2[j]) / 2 for j in range(3))
                 self._mark_error(output_msp, midpoint, f"Short segment: {distance:.6f}m")
             
-            # Show some stats for debugging
+            # stats for debugging
             elif self.verbose and i < 5:
                 print(f"  Segment {i+1}: {distance:.6f}m (OK)")
         
@@ -42,7 +42,7 @@ class TooShortSegmentCheck(SegmentCheck):
             print(f"Total short segments found: {short_segments_found}")
             if short_segments_found == 0:
                 print("No segments shorter than threshold found.")
-                # Show the shortest segments for reference
+                # shortest segments for reference
                 all_distances = []
                 for i in range(len(points) - 1):
                     p1, p2 = points[i], points[i + 1]
@@ -61,7 +61,7 @@ class TooShortSegmentCheck(SegmentCheck):
         layer = ERROR_LAYERS.get(self.name, 'SEGMENT_ERRORS_3D')
         color = ERROR_COLORS.get(self.name, 2)
         try:
-            # Ensure pt is a proper tuple/list of 3 coordinates
+            # pt is a proper tuple/list of 3 coordinates (because errors)
             if len(pt) != 3:
                 if self.verbose:
                     print(f"    Warning: Invalid point format: {pt}")

@@ -1,5 +1,7 @@
 /archive
 /dxf
+/packaged
 /script_check.dxf
 /script_check_errors.dxf
 /__pycache__
+*.dxf

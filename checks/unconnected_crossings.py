@@ -13,14 +13,12 @@ class UnconnectedCrossingCheck(SegmentCheck):
         # Extract segments from this entity
         for i in range(len(points) - 1):
             self.line_segments.append((entity, (points[i], points[i + 1])))
-
-        # Only do pairwise checks after all entities are processed.
-        # The coordinating logic should trigger `finalize(output_msp)` once at the end.
+        
 
     def finalize(self, output_msp):
         for (e1, seg1), (e2, seg2) in combinations(self.line_segments, 2):
             if e1 is e2:
-                continue# Skip comparing with self
+                continue# skip comparing with self
 
             if self._segments_intersect_2d(seg1, seg2):
                 intersection = self._intersection_point_2d(seg1, seg2)

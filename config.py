@@ -7,7 +7,7 @@ ERROR_LAYERS = {
     "UnconnectedCrossing": "ERROR_UNCONNECTED_CROSSINGS"
 }
 
-# DXF colors for each error type (AutoCAD color index)
+# DXF colors for each error type
 ERROR_COLORS = {
     "TooLongSegment": 1,          # Red
     "TooShortSegment": 2,         # Yellow

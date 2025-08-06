@@ -1,5 +1,3 @@
-# checks/z_anomalous_vertices.py
-
 from checks.base import SegmentCheck
 
 class ZAnomalousVerticesCheck(SegmentCheck):

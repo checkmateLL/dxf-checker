@@ -1,8 +1,6 @@
-# main.py
-
 import os
 import argparse
-import ezdxf
+import ezdxf #install via pip
 from utils import get_3d_points_from_entity, collect_all_linear_entities
 from config import ERROR_LAYERS, ERROR_COLORS, DXF_VERSION
 from checks.too_long_segment import TooLongSegmentCheck
