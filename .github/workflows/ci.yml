@@ -32,23 +32,23 @@ jobs:
     - name: Lint with flake8
       run: |
         # Stop the build if there are Python syntax errors or undefined names
-        flake8 checkmatell_dxf_checker --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 dxf_checker --count --select=E9,F63,F7,F82 --show-source --statistics
         # Exit-zero treats all errors as warnings
-        flake8 checkmatell_dxf_checker --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+        flake8 dxf_checker --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
 
     - name: Test imports and basic functionality
       run: |
-        python -c "from checkmatell_dxf_checker import __version__; print(f'Version: {__version__}')"
-        python -c "from checkmatell_dxf_checker.main import main; print('Main import successful')"
-        python -c "from checkmatell_dxf_checker.checks.base import SegmentCheck; print('Base check import successful')"
+        python -c "from dxf_checker import __version__; print(f'Version: {__version__}')"
+        python -c "from dxf_checker.main import main; print('Main import successful')"
+        python -c "from dxf_checker.checks.base import SegmentCheck; print('Base check import successful')"
 
     - name: Test CLI help
       run: |
-        python -m checkmatell_dxf_checker.main --help
+        python -m dxf_checker.main --help
 
     - name: Run basic tests (when you add them)
       run: |
-        # pytest tests/ --cov=checkmatell_dxf_checker --cov-report=xml --cov-report=term
+        # pytest tests/ --cov=dxf_checker --cov-report=xml --cov-report=term
         echo "Tests would run here - add when you create test files"
 
     # - name: Upload coverage to Codecov

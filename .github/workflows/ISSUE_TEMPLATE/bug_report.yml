@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: What version of checkmatell-dxf-checker are you running?
+      description: What version of dxf-checker are you running?
       placeholder: e.g. 1.0.0
     validations:
       required: true

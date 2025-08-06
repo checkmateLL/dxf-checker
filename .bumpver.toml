@@ -1,0 +1,7 @@
+[bumpver]
+current_version = "1.1.2"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump: version {old_version} → {new_version}"
+tag_message = "Release {new_version}"
+tag_scope = "default"
+search = ["dxf_checker/__init__.py"]

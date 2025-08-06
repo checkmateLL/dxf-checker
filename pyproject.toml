@@ -4,7 +4,7 @@ requires = ["hatchling>=1.13.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "checkmatell-dxf-checker"
+name = "dxf-checker"
 dynamic = ["version"]
 description = "A comprehensive tool for validating DXF segment integrity and detecting geometry issues"
 readme = "README.md"
@@ -74,18 +74,18 @@ Repository = "https://github.com/yourusername/checkmatell-dxf-checker"
 Changelog = "https://github.com/yourusername/checkmatell-dxf-checker/blob/main/CHANGELOG.md"
 
 [project.scripts]
-dxf-checker = "checkmatell_dxf_checker.main:main"
-checkmatell-dxf = "checkmatell_dxf_checker.main:main"
+dxf-checker = "dxf_checker.main:main"
+checkmatell-dxf = "dxf_checker.main:main"
 
 [tool.hatch.version]
-path = "checkmatell_dxf_checker/__init__.py"
+path = "dxf_checker/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["checkmatell_dxf_checker"]
+packages = ["dxf_checker"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/checkmatell_dxf_checker",
+    "/dxf_checker",
     "/tests",
     "/README.md",
     "/CHANGELOG.md",
@@ -116,7 +116,7 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["checkmatell_dxf_checker"]
+known_first_party = ["dxf_checker"]
 
 # pytest configuration
 [tool.pytest.ini_options]
@@ -125,7 +125,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "--cov=checkmatell_dxf_checker",
+    "--cov=dxf_checker",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -142,7 +142,7 @@ markers = [
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["checkmatell_dxf_checker"]
+source = ["dxf_checker"]
 omit = [
     "*/tests/*",
     "*/test_*.py",

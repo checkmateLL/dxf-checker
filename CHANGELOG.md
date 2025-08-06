@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Minor bug fixes in segment distance calculations
 
-## [1.0.0] - 2025-08-03
+## [1.0.6] - 2025-08-03
 ### Added
 - Initial stable release
 - Five core check types:

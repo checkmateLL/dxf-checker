@@ -1,80 +1,51 @@
-import math
-from typing import List, Tuple
-import ezdxf
+import os
+from pathlib import Path
+from importlib import import_module
 
-def get_3d_points_from_entity(entity) -> List[Tuple[float, float, float]]:
-    """Extracts 3D points from a DXF entity."""
-    points = []
-    entity_type = entity.dxftype()
+from dxf_checker import config
+from dxf_checker.logger import log
 
-    try:
-        if entity_type == 'LINE':
-            start = entity.dxf.start
-            end = entity.dxf.end
-            points = [
-                (float(start.x), float(start.y), float(getattr(start, 'z', 0.0))),
-                (float(end.x), float(end.y), float(getattr(end, 'z', 0.0)))
-            ]
 
-        elif entity_type == 'LWPOLYLINE':
-            elevation = float(getattr(entity.dxf, 'elevation', 0.0))
-            for point in entity:
-                x, y = float(point[0]), float(point[1])
-                points.append((x, y, elevation))
-            if entity.closed and len(points) > 2:
-                points.append(points[0])
+def load_checks(check_names):
+    """
+    Dynamically load check classes based on names passed from CLI.
+    """
+    checks = []
+    for name in check_names:
+        try:
+            module = import_module(f"dxf_checker.checks.{name}_check")
+            class_name = "".join([part.capitalize() for part in name.split("_")]) + "Check"
+            check_class = getattr(module, class_name)
+            checks.append(check_class())
+        except (ModuleNotFoundError, AttributeError) as e:
+            log(f"❌ Could not load check '{name}': {e}", level="ERROR")
+    return checks
 
-        elif entity_type == 'POLYLINE':
-            if hasattr(entity, 'vertices') and entity.vertices:
-                for vertex in entity.vertices:
-                    try:
-                        x, y, z = map(float, vertex.dxf.location.xyz)
-                        points.append((x, y, z))
-                    except Exception as e:
-                        print(f"    Failed to extract POLYLINE vertex: {e}")
-            if entity.is_closed and len(points) > 2:
-                points.append(points[0])
 
-        elif entity_type == '3DPOLYLINE':
-            for vertex in entity.vertices:
-                x, y, z = map(float, vertex.dxf.location.xyz)
-                points.append((x, y, z))
+def get_output_path(input_file: Path):
+    """
+    Create a default error DXF output path like 'yourfile_errors.dxf'.
+    """
+    folder = input_file.parent
+    name = input_file.stem
+    return folder / f"{name}_errors.dxf"
 
-        elif entity_type in ['SPLINE', 'ARC', 'CIRCLE', 'ELLIPSE']:
-            segments = 36 if entity_type in ['CIRCLE', 'ELLIPSE'] else 20
-            approx_points = list(entity.approximate(segments=segments))
-            points = [(float(p.x), float(p.y), float(getattr(p, 'z', 0.0))) for p in approx_points]
-            if entity_type in ['CIRCLE', 'ELLIPSE']:
-                points.append(points[0])  # close loop
 
-    except Exception as e:
-        print(f"Error extracting points from {entity_type}: {e}")
+def distance_3d(p1, p2):
+    """
+    3D Euclidean distance.
+    """
+    return ((p1[0] - p2[0]) ** 2 +
+            (p1[1] - p2[1]) ** 2 +
+            (p1[2] - p2[2]) ** 2) ** 0.5
 
-    return points
 
-def collect_all_linear_entities(doc) -> List:
-    """Collects LINE and polyline-like entities from modelspace, layouts, and blocks."""
-    linear_types = ['LINE', 'LWPOLYLINE', 'POLYLINE', '3DPOLYLINE', 'SPLINE', 'ARC', 'CIRCLE', 'ELLIPSE']
-    entities = []
-
-    for entity in doc.modelspace():
-        if entity.dxftype() in linear_types:
-            entities.append(entity)
-
-    for layout_name in doc.layout_names():
-        if layout_name != 'Model':
-            layout = doc.layouts.get(layout_name)
-            for entity in layout:
-                if entity.dxftype() in linear_types:
-                    entities.append(entity)
-
-    for block in doc.blocks:
-        if not block.name.startswith('*'):
-            for entity in block:
-                if entity.dxftype() in linear_types:
-                    entities.append(entity)
-
-    return entities
-
-def calculate_3d_distance(p1: Tuple[float, float, float], p2: Tuple[float, float, float]) -> float:
-    return math.sqrt(sum((p2[i] - p1[i]) ** 2 for i in range(3)))
+def midpoint(p1, p2):
+    """
+    Midpoint between two 3D points.
+    """
+    return (
+        (p1[0] + p2[0]) / 2,
+        (p1[1] + p2[1]) / 2,
+        (p1[2] + p2[2]) / 2
+    )
