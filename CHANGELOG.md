@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.6] - 2025-08-03
 ### Added
-- Initial stable release
 - Five core check types:
   - Too Long Segment detection (>50m)
   - Too Short Segment detection (<5cm) 
@@ -32,3 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for multiple DXF entity types (LINE, LWPOLYLINE, POLYLINE, etc.)
 - Extended data attachment to error markers
 - Configurable thresholds and tolerances
+
+## [1.1.2] - 2025-08-06
+### Added
+- Proper logging
+
+## [1.1.3] - 2025-08-07
+### Fixed
+- Minor bug with saving DXF file
+- 'float' error when storing coordinates

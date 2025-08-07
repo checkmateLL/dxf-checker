@@ -1,0 +1,24 @@
+=== DXF Checker Log (20250807_1044) ===
+
+[INFO] Input DXF: delivery2.dxf
+[INFO] Checks enabled: ['too_long', 'too_short', 'duplicates', 'crossing', 'z_anomaly']
+[INFO] Found 23 linear entities
+[INFO] ✅ Loaded check: TooLongSegmentCheck
+[INFO] ✅ Loaded check: TooShortSegmentCheck
+[INFO] ✅ Loaded check: DuplicateVerticesCheck
+[INFO] ✅ Loaded check: UnconnectedCrossingCheck
+[INFO] ✅ Loaded check: ZAnomalousVerticesCheck
+[INFO] Running TooLongSegmentCheck...
+[INFO] Running TooShortSegmentCheck...
+[INFO] Running DuplicateVerticesCheck...
+[INFO] Running UnconnectedCrossingCheck...
+[INFO] Running ZAnomalousVerticesCheck...
+[INFO] ✅ Saved error markers only to: delivery2_errors.dxf
+[INFO] 
+=== Check Summary ===
+[INFO] TooLongSegmentCheck: 0 issue(s)
+[INFO] TooShortSegmentCheck: 1 issue(s)
+[INFO] DuplicateVerticesCheck: 1 issue(s)
+[INFO] UnconnectedCrossingCheck: 0 issue(s)
+[INFO] ZAnomalousVerticesCheck: 5 issue(s)
+[INFO] ⚠️ Total issues: 7

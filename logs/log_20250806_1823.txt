@@ -1,0 +1,7 @@
+=== DXF Checker Log (20250806_1823) ===
+
+[INFO] Input DXF: delivery2.dxf
+[INFO] Checks enabled: ['too_long']
+[INFO] Found 23 linear entities
+[INFO] ✅ Loaded check: TooLongSegmentCheck
+[INFO] Running TooLongSegmentCheck...

@@ -73,9 +73,9 @@ class TooShortSegmentCheck(SegmentCheck):
                 [
                     (1000, f"ERR_3D_SHORT_{self.error_count:04d}"),
                     (1000, description or f"Segment < {self.min_distance}m"),
-                    (1010, float(pt[0])),
-                    (1020, float(pt[1])),
-                    (1030, float(pt[2])),
+                    (1010, pt[0]),
+                    (1020, pt[1]),
+                    (1030, pt[2]),
                 ]
             )
         except Exception as e:

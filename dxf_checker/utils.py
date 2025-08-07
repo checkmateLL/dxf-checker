@@ -15,8 +15,8 @@ def load_checks(check_names, check_params=None):
     
     checks = []
     check_mapping = {
-        "too_long": ("too_long_check", "TooLongCheck"),
-        "too_short": ("too_short_check", "TooShortCheck"),
+        "too_long": ("too_long_check", "TooLongSegmentCheck"),    
+        "too_short": ("too_short_check", "TooShortSegmentCheck"),   
         "duplicates": ("duplicate_vertices_check", "DuplicateVerticesCheck"),
         "z_anomaly": ("z_anomalous_vertices_check", "ZAnomalousVerticesCheck"),
         "crossing": ("crossing_check", "UnconnectedCrossingCheck")
@@ -24,7 +24,7 @@ def load_checks(check_names, check_params=None):
     
     for name in check_names:
         if name not in check_mapping:
-            log(f"❌ Unknown check '{name}'. Available: {list(check_mapping.keys())}", level="ERROR")
+            log(f"Unknown check '{name}'. Available: {list(check_mapping.keys())}", level="ERROR")
             continue
             
         module_name, class_name = check_mapping[name]
@@ -53,7 +53,7 @@ def load_checks(check_names, check_params=None):
             log(f"✅ Loaded check: {class_name}")
             
         except (ModuleNotFoundError, AttributeError) as e:
-            log(f"❌ Could not load check '{name}': {e}", level="ERROR")
+            log(f"Could not load check '{name}': {e}", level="ERROR")
     
     return checks
 

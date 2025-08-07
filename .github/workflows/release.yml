@@ -44,21 +44,21 @@ jobs:
         echo "Package version: $PACKAGE_VERSION"
         echo "Tag version: $TAG_VERSION"
         if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-          echo "❌ Version mismatch: package=$PACKAGE_VERSION, tag=$TAG_VERSION"
+          echo "Version mismatch: package=$PACKAGE_VERSION, tag=$TAG_VERSION"
           exit 1
         fi
-        echo "✅ Version consistency verified: $PACKAGE_VERSION"
+        echo "Version consistency verified: $PACKAGE_VERSION"
 
     - name: Run tests before release
       run: |
         python -c "from dxf_checker import main; print('Import test passed')"
         python -m dxf_checker.main --help
-        echo "✅ Basic functionality tests passed"
+        echo "Basic functionality tests passed"
 
     - name: Build package
       run: |
         python -m build
-        echo "✅ Package built successfully"
+        echo "Package built successfully"
         ls -la dist/
 
     - name: Generate release notes
