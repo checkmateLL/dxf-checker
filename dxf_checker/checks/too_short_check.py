@@ -1,6 +1,7 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
 import math
+from dxf_checker.logger import log_verbose
 
 class TooShortSegmentCheck(SegmentCheck):
     def __init__(self, min_distance: float = 0.05, units_scale: float = 1.0, verbose: bool = False):
@@ -11,8 +12,8 @@ class TooShortSegmentCheck(SegmentCheck):
 
     def run(self, entity, points, output_msp):
         if self.verbose:
-            print(f"\n=== Checking {type(entity).__name__} with {len(points)} points ===")
-            print(f"Looking for segments shorter than {self.min_distance}m")
+            log_verbose(f"\n=== Checking {type(entity).__name__} with {len(points)} points ===")
+            log_verbose(f"Looking for segments shorter than {self.min_distance}m")
         
         short_segments_found = 0
         
@@ -27,21 +28,21 @@ class TooShortSegmentCheck(SegmentCheck):
                 self.error_count += 1
                 
                 if self.verbose:
-                    print(f"  *** ERROR: Segment {i+1} is too short: {distance:.6f}m ***")
-                    print(f"      From: ({p1[0]:.3f}, {p1[1]:.3f}, {p1[2]:.3f})")
-                    print(f"      To:   ({p2[0]:.3f}, {p2[1]:.3f}, {p2[2]:.3f})")
+                    log_verbose(f"  *** ERROR: Segment {i+1} is too short: {distance:.6f}m ***")
+                    log_verbose(f"      From: ({p1[0]:.3f}, {p1[1]:.3f}, {p1[2]:.3f})")
+                    log_verbose(f"      To:   ({p2[0]:.3f}, {p2[1]:.3f}, {p2[2]:.3f})")
 
                 midpoint = tuple((p1[j] + p2[j]) / 2 for j in range(3))
                 self._mark_error(output_msp, midpoint, f"Short segment: {distance:.6f}m")
             
             # stats for debugging
             elif self.verbose and i < 5:
-                print(f"  Segment {i+1}: {distance:.6f}m (OK)")
+                log_verbose(f"  Segment {i+1}: {distance:.6f}m (OK)")
         
         if self.verbose:
-            print(f"Total short segments found: {short_segments_found}")
+            log_verbose(f"Total short segments found: {short_segments_found}")
             if short_segments_found == 0:
-                print("No segments shorter than threshold found.")
+                log_verbose("No segments shorter than threshold found.")
                 # shortest segments for reference
                 all_distances = []
                 for i in range(len(points) - 1):
@@ -50,9 +51,9 @@ class TooShortSegmentCheck(SegmentCheck):
                     all_distances.append((i+1, dist))
                 
                 all_distances.sort(key=lambda x: x[1])
-                print("Shortest 10 segments:")
+                log_verbose("Shortest 10 segments:")
                 for seg_num, dist in all_distances[:10]:
-                    print(f"  Segment {seg_num}: {dist:.6f}m")
+                    log_verbose(f"  Segment {seg_num}: {dist:.6f}m")
 
     def _calculate_distance(self, p1, p2):
         return math.sqrt(sum((p2[i] - p1[i]) ** 2 for i in range(3)))
@@ -64,7 +65,7 @@ class TooShortSegmentCheck(SegmentCheck):
             # pt is a proper tuple/list of 3 coordinates (because errors)
             if len(pt) != 3:
                 if self.verbose:
-                    print(f"    Warning: Invalid point format: {pt}")
+                    log_verbose(f"    Warning: Invalid point format: {pt}")
                 return
                 
             marker = msp.add_point(pt, dxfattribs={'layer': layer, 'color': color})
@@ -80,5 +81,5 @@ class TooShortSegmentCheck(SegmentCheck):
             )
         except Exception as e:
             if self.verbose:
-                print(f"    Warning: Could not set extended data: {e}")
-                print(f"    Point was: {pt}")
+                log_verbose(f"    Warning: Could not set extended data: {e}")
+                log_verbose(f"    Point was: {pt}")

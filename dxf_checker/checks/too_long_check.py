@@ -1,5 +1,6 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
+from dxf_checker.logger import log_verbose
 import math
 
 class TooLongSegmentCheck(SegmentCheck):
@@ -17,12 +18,12 @@ class TooLongSegmentCheck(SegmentCheck):
             distance = self._calculate_distance(p1, p2) * self.units_scale
 
             if self.verbose:
-                print(f"  Segment {i + 1}: {distance:.3f}m")
+                log_verbose(f"  Segment {i + 1}: {distance:.3f}m")
 
             if distance > self.max_distance:
                 self.error_count += 1
                 if self.verbose:
-                    print(f"  *** ERROR: Segment exceeds {self.max_distance}m! ***")
+                    log_verbose(f"  *** ERROR: Segment exceeds {self.max_distance}m! ***")
 
                 midpoint = tuple((p1[j] + p2[j]) / 2 for j in range(3))
 
@@ -56,7 +57,7 @@ class TooLongSegmentCheck(SegmentCheck):
 
                 except Exception as e:
                     if self.verbose:
-                        print(f"    Warning: Could not set extended data: {e}")
+                        log_verbose(f"    Warning: Could not set extended data: {e}")
 
     def _calculate_distance(self, p1, p2):
         return math.sqrt(sum((p2[i] - p1[i]) ** 2 for i in range(3)))

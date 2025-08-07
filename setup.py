@@ -3,7 +3,7 @@ import os
 
 # Read version from __init__.py
 def get_version():
-    with open(os.path.join("checkmatell_dxf_checker", "__init__.py"), "r") as f:
+    with open(os.path.join("dxf_checker", "__init__.py"), "r") as f:
         for line in f:
             if line.startswith("__version__"):
                 return line.split("=")[1].strip().strip('"').strip("'")
@@ -16,12 +16,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="checkmatell-dxf-checker",
     version=get_version(),
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Juliya Lehka",
+    author_email="juliya.legkaya@gmail.com",
     description="A tool for validating DXF segment integrity",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/checkmatell-dxf-checker",
+    url="https://github.com/checkmateLL/dxf-checker",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -40,7 +40,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "dxf-checker=checkmatell_dxf_checker.main:main",
+            "dxf-checker=dxf_checker.main:main",
         ],
     },
 )

@@ -1,5 +1,6 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
+from dxf_checker.logger import log_verbose
 import math
 
 class ZAnomalousVerticesCheck(SegmentCheck):
@@ -26,7 +27,7 @@ class ZAnomalousVerticesCheck(SegmentCheck):
             if deviation > self.threshold:
                 self.error_count += 1
                 if self.verbose:
-                    print(f"  *** ERROR: Z-anomaly at {p_curr}, deviation = {deviation:.4f}m")
+                    log_verbose(f"  *** ERROR: Z-anomaly at {p_curr}, deviation = {deviation:.4f}m")
 
                 self._mark_error(output_msp, p_curr, deviation)
 

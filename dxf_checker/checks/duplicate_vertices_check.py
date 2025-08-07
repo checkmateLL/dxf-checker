@@ -1,5 +1,6 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
+from dxf_checker.logger import log_verbose
 import math
 
 class DuplicateVerticesCheck(SegmentCheck):
@@ -18,7 +19,7 @@ class DuplicateVerticesCheck(SegmentCheck):
                     self.error_count += 1
                     if self.verbose:
                         note = "EXACT duplicate" if dist == 0.0 else f"dist = {dist:.6f}"
-                        print(f"  *** ERROR: Duplicate-like vertices at {points[i]} & {points[j]} ({note}) ***")
+                        log_verbose(f"  *** ERROR: Duplicate-like vertices at {points[i]} & {points[j]} ({note}) ***")
                     self._mark_error(output_msp, points[i])
 
     def _distance(self, a, b):
@@ -39,4 +40,4 @@ class DuplicateVerticesCheck(SegmentCheck):
             )
         except Exception as e:
             if self.verbose:
-                print(f"    Warning: Could not set extended data: {e}")
+                log_verbose(f"    Warning: Could not set extended data: {e}")

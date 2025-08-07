@@ -1,5 +1,6 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
+from dxf_checker.logger import log_verbose
 import math
 from itertools import combinations
 
@@ -27,7 +28,7 @@ class UnconnectedCrossingCheck(SegmentCheck):
                 if not self._near_any_vertex(intersection, seg1, seg2):
                     self.error_count += 1
                     if self.verbose:
-                        print(f"  *** ERROR: Unconnected crossing at {intersection} ***")
+                        log_verbose(f"  *** ERROR: Unconnected crossing at {intersection} ***")
                     self._mark_error(output_msp, intersection)
 
     def _near_any_vertex(self, pt, seg1, seg2):

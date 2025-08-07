@@ -44,7 +44,7 @@ def main(cli_args=None):
     args = parse_args() if cli_args is None else cli_args
 
     if not args.input_file.exists():
-        print(f"Input file does not exist: {args.input_file}")
+        log(f"Input file does not exist: {args.input_file}", level="ERROR")
         sys.exit(1)
 
     setup_logging(verbose=args.verbose)
