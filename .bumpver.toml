@@ -8,4 +8,5 @@ search = ["dxf_checker/__init__.py"]
 
 [git]
 tag = true
-push = true 
+commit = true
+push = true
