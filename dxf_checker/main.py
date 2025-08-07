@@ -1,14 +1,25 @@
 import argparse
 import os
 import sys
+import csv
+from datetime import datetime
 from pathlib import Path
 
 import ezdxf
 from ezdxf import new
 
 from dxf_checker import config
-from dxf_checker.logger import log, setup_logging
+from dxf_checker.logger import log, setup_logging, LOG_DIR
 from dxf_checker.utils import load_checks, get_output_path
+from dxf_checker.logger import log_verbose
+
+from dxf_checker.checks.road_geometry_validator import (
+    DXFReader,
+    GeometryIdealizer,
+    ComparisonEngine,
+    GeometricConstraints,
+    ValidationReport,
+)
 
 
 def parse_args():
@@ -135,18 +146,94 @@ def main(cli_args=None):
         sys.exit(1)
 
     # ------------------------------------------------------------------
-    # 5. Summary
+    # 5. Optional Road Geometry Validation
+    # ------------------------------------------------------------------
+    if "road_geom" in args.checks:
+        log("\n=== Road Geometry Validation ===")
+        reader = DXFReader()
+        lines = reader.load_dxf(args.input_file)
+
+        constraints = GeometricConstraints()
+        idealizer = GeometryIdealizer(constraints)
+        engine = ComparisonEngine()
+
+        total_issues = 0
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Generate timestamp
+        csv_path = LOG_DIR / f"road_geom_validation_{timestamp}.csv"  # Unique CSV file per run
+        error_dxf_path = LOG_DIR / f"road_geom_errors_{timestamp}.dxf"  # Separate DXF for errors
+
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["handle", "vertex_index", "orig_x", "orig_y", "orig_z",
+                            "ideal_x", "ideal_y", "ideal_z",
+                            "horizontal_error", "elevation_error"])
+
+            error_doc = new(config.DXF_VERSION)  # Create new DXF document for errors
+            error_msp = error_doc.modelspace()
+
+            for line in lines:
+                ideal = idealizer.idealize(line)
+                report = engine.compare(line, ideal)
+                summary = report.summary()
+
+                max_h = summary["max_horizontal"]
+                max_z = summary["max_elevation"]
+                cnt = summary["count"]
+                total_issues += cnt
+
+                handle = line.meta.get("handle", "?")
+                log(f"  {handle}  h-dev={max_h:.3f}m  z-dev={max_z:.3f}m  issues={cnt}")
+
+                for deviation in report.deviations:
+                    writer.writerow([
+                        handle,
+                        deviation.vertex_index,
+                        *deviation.original,
+                        *deviation.ideal,
+                        deviation.horizontal_error,
+                        deviation.elevation_error,
+                    ])
+
+                    # Add error markers to the error DXF
+                    error_layer = "ERROR_ROAD_GEOM"
+                    if error_layer not in error_doc.layers:
+                        error_doc.layers.new(name=error_layer, dxfattribs={'color': 7})
+                    error_msp.add_point(deviation.original, dxfattribs={'layer': error_layer})
+
+                    # Add idealized geometry to the error DXF
+                    ideal_layer = "IDEAL_ROAD_GEOM"
+                    if ideal_layer not in error_doc.layers:
+                        error_doc.layers.new(name=ideal_layer, dxfattribs={'color': 2})
+                    error_msp.add_polyline3d([v for v in ideal.vertices], dxfattribs={'layer': ideal_layer})
+
+        log(f"Road geometry validation complete. Total issues: {total_issues}")
+        log(f"Validation results saved to: {csv_path}")
+
+        # Save the error DXF file
+        try:
+            error_doc.saveas(error_dxf_path)
+            log(f"Saved error markers and idealized geometry to: {error_dxf_path}")
+        except Exception as e:
+            log(f"Failed to save error DXF file: {e}", level="ERROR")
+            sys.exit(1)
+    
+    # ------------------------------------------------------------------
+    # 6. Summary
     # ------------------------------------------------------------------
     log("\n=== Check Summary ===")
     for check in checks:
         log(f"{check.__class__.__name__}: {check.get_error_count()} issue(s)")
 
-    if error_count == 0:
-        log("No issues detected.")
-    else:
-        log(f"Total issues: {error_count}")
+    if "road_geom" in args.checks and total_issues == 0:
+        log("No road geometry issues detected.")
 
-    return 0
+    classic_total = sum(c.get_error_count() for c in checks)
+    combined_total = classic_total + (total_issues if "road_geom" in args.checks else 0)
+
+    if combined_total == 0:
+        log("No issues detected at all.")
+    else:
+        log(f"Total issues (classic + road): {combined_total}")
 
 
 if __name__ == "__main__":

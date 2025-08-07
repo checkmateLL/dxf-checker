@@ -19,7 +19,8 @@ def load_checks(check_names, check_params=None):
         "too_short": ("too_short_check", "TooShortSegmentCheck"),   
         "duplicates": ("duplicate_vertices_check", "DuplicateVerticesCheck"),
         "z_anomaly": ("z_anomalous_vertices_check", "ZAnomalousVerticesCheck"),
-        "crossing": ("crossing_check", "UnconnectedCrossingCheck")
+        "crossing": ("crossing_check", "UnconnectedCrossingCheck"),
+        "road_geom": ("road_geometry_validator", "RoadGeometryValidatorCheck"),
     }
     
     for name in check_names:
@@ -50,7 +51,7 @@ def load_checks(check_names, check_params=None):
                 check = check_class(verbose=check_params.get('verbose', False))
             
             checks.append(check)
-            log(f"✅ Loaded check: {class_name}")
+            log(f"Loaded check: {class_name}")
             
         except (ModuleNotFoundError, AttributeError) as e:
             log(f"Could not load check '{name}': {e}", level="ERROR")

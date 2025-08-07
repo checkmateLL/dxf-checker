@@ -44,3 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.5] - 2025-08-07
 ### Fixed
 - Fixed issue with auto tags in bumpver
+
+## [1.2.0] - 2025-08-07
+### Added
+- Added engine for comparing ideal road geometry with existing
