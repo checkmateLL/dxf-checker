@@ -10,7 +10,7 @@ tag_scope = "default"
     '__version__ = "{pep440_version}"'
 ]
 
-[git]
-tag = true
+[bumpver.git]
 commit = true
+tag = true
 push = true
