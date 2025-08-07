@@ -40,3 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Minor bug with saving DXF file
 - 'float' error when storing coordinates
+
+## [1.1.5] - 2025-08-07
+### Fixed
+- Fixed issue with auto tags in bumpver
