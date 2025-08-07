@@ -1,10 +1,14 @@
 [bumpver]
-current_version = "1.1.4"
+current_version = "1.1.5"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump: version {old_version} → {new_version}"
 tag_message = "Release {new_version}"
 tag_scope = "default"
-search = ["dxf_checker/__init__.py"]
+
+[bumpver.file_patterns]
+"dxf_checker/__init__.py" = [
+    '__version__ = "{pep440_version}"'
+]
 
 [git]
 tag = true
