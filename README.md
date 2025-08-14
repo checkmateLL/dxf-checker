@@ -4,7 +4,7 @@ A Python tool for validating DXF segment integrity and detecting geometry issues
 
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
 [![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)
-[![Version](https://img.shields.io/badge/version-1.1.5-green.svg)](https://github.com/checkmatell/dxf-checker)
+[![Version](https://img.shields.io/badge/version-2.0.0-green.svg)](https://github.com/checkmatell/dxf-checker)
 
 ## Overview
 
