@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 import math
 from ._utils import distance_3d
 
@@ -7,7 +7,10 @@ class RoadLine:
     Immutable representation of a road alignment.
     """
 
-    def __init__(self, vertices: List[Tuple[float, float, float]], meta: Dict[str, Any] | None = None):
+    def __init__(self,
+                 vertices: List[Tuple[float, float, float]],
+                 meta: Optional[Dict[str, Any]] = None,
+                 ):
         self.vertices = vertices
         self.meta = meta or {}
 
