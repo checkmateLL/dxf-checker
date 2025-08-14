@@ -21,6 +21,7 @@ def load_checks(check_names, check_params=None):
         "z_anomaly": ("z_anomalous_vertices_check", "ZAnomalousVerticesCheck"),
         "crossing": ("crossing_check", "UnconnectedCrossingCheck"),
         "road_geom": ("road_geometry_validator", "RoadGeometryValidatorCheck"),
+        "zero_elevation": ("zero_elevation_check", "ZeroElevationCheck"),
     }
     
     for name in check_names:
@@ -44,6 +45,11 @@ def load_checks(check_names, check_params=None):
                 check = check_class(
                     min_distance=check_params.get('min_distance', 0.05),
                     units_scale=check_params.get('units_scale', 1.0),
+                    verbose=check_params.get('verbose', False)
+                )
+            elif name == "zero_elevation":
+                check = check_class(
+                    tolerance=check_params.get('zero_tolerance', 1e-6),
                     verbose=check_params.get('verbose', False)
                 )
             else:

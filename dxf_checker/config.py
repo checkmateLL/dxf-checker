@@ -4,8 +4,10 @@ ERROR_LAYERS = {
     "TooShortSegment": "ERROR_SHORT_SEGMENTS",
     "DuplicateVertices": "ERROR_DUPLICATE_VERTS",
     "ZAnomalousVertices": "ERROR_Z_ANOMALY",
-    "UnconnectedCrossing": "ERROR_UNCONNECTED_CROSSINGS"
+    "UnconnectedCrossing": "ERROR_UNCONNECTED_CROSSINGS",
+    "ZeroElevation": "ERROR_ZERO_ELEVATION"
 }
+
 
 # DXF colors for each error type
 ERROR_COLORS = {
@@ -13,7 +15,9 @@ ERROR_COLORS = {
     "TooShortSegment": 2,         # Yellow
     "DuplicateVertices": 3,       # Green
     "ZAnomalousVertices": 6,      # Magenta
-    "UnconnectedCrossing": 5      # Blue
+    "UnconnectedCrossing": 5,      # Blue
+    "ZeroElevation": 30
+    
 }
 
 # Default thresholds

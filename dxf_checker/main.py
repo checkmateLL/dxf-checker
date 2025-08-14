@@ -7,6 +7,7 @@ from pathlib import Path
 
 import ezdxf
 from ezdxf import new
+from ezdxf.math import Matrix44
 
 from dxf_checker import config
 from dxf_checker.logger import log, setup_logging, LOG_DIR
@@ -48,7 +49,201 @@ def parse_args():
     parser.add_argument(
         "--scale", type=float, default=1.0, help="Scale factor for measurements"
     )
+    parser.add_argument(
+        "--zero_tolerance", type=float, default=1e-6, 
+        help="Tolerance for considering elevation as zero (meters)"
+    )
+    # road geometry specific parameters
+    parser.add_argument(
+        "--road_h_threshold", type=float, default=0.05, 
+        help="Horizontal deviation threshold for road geometry (meters)"
+    )
+    parser.add_argument(
+        "--road_z_threshold", type=float, default=0.03, 
+        help="Elevation deviation threshold for road geometry (meters)"
+    )
     return parser.parse_args()
+
+
+def extract_entities_from_doc(doc):
+    """
+    Extract all linear entities from the document, including those inside block definitions.
+    Returns a list of (entity, transform_matrix) tuples.
+    """
+    entities_with_transforms = []
+    msp = doc.modelspace()
+    
+    # First, get direct entities from modelspace
+    # FIXED: Adding HATCH to catch polygon boundaries
+    direct_entities = list(msp.query("LINE LWPOLYLINE POLYLINE SPLINE 3DPOLYLINE POINT HATCH"))
+    
+    # Debug logging
+    entity_types = {}
+    for entity in direct_entities:
+        dxftype = entity.dxftype()
+        if dxftype == 'HATCH':
+            log_verbose(f"Found HATCH in modelspace with {len(entity.paths)} boundary paths")
+        entity_types[dxftype] = entity_types.get(dxftype, 0) + 1
+    
+    log("Entity types found in modelspace:")
+    for etype, count in entity_types.items():
+        log(f"  {etype}: {count}")
+    
+    for entity in direct_entities:
+        entities_with_transforms.append((entity, Matrix44()))  # Identity matrix for direct entities
+    
+    # Then, handle INSERT entities (block references)
+    insert_entities = list(msp.query("INSERT"))
+    log(f"Found {len(insert_entities)} INSERT entities (block references)")
+    
+    block_entity_types = {}
+    total_block_entities = 0
+    
+    for insert in insert_entities:
+        try:
+            # Get the block definition
+            block = doc.blocks[insert.dxf.name]
+            
+            # Create transformation matrix for this insert
+            transform = Matrix44.chain(
+                Matrix44.scale(insert.dxf.xscale, insert.dxf.yscale, insert.dxf.zscale),
+                Matrix44.z_rotate(insert.dxf.rotation),
+                Matrix44.translate(insert.dxf.insert.x, insert.dxf.insert.y, insert.dxf.insert.z)
+            )
+            
+            # FIXED: Get entities from the block INCLUDING HATCH
+            block_entities = list(block.query("LINE LWPOLYLINE POLYLINE SPLINE 3DPOLYLINE POINT HATCH"))
+            total_block_entities += len(block_entities)
+            
+            # Debug: count block entity types
+            for entity in block_entities:
+                dxftype = entity.dxftype()
+                if dxftype == 'HATCH':
+                    log_verbose(f"Found HATCH in block '{insert.dxf.name}' with {len(entity.paths)} boundary paths")
+                block_entity_types[dxftype] = block_entity_types.get(dxftype, 0) + 1
+            
+            for entity in block_entities:
+                entities_with_transforms.append((entity, transform))
+                
+        except KeyError:
+            log(f"Warning: Block '{insert.dxf.name}' not found", level="WARNING")
+        except Exception as e:
+            log(f"Warning: Error processing INSERT entity: {e}", level="WARNING")
+    
+    if block_entity_types:
+        log("Entity types found in blocks:")
+        for etype, count in block_entity_types.items():
+            log(f"  {etype}: {count}")
+    
+    log(f"Total entities extracted: {len(entities_with_transforms)} (direct: {len(direct_entities)}, from blocks: {total_block_entities})")
+    
+    return entities_with_transforms
+
+
+def transform_points(points, transform_matrix):
+    """Transform a list of points using the given transformation matrix."""
+    # Check if it's an identity matrix by comparing to identity
+    identity = Matrix44()
+    is_identity = transform_matrix == identity
+    
+    if is_identity:
+        return points
+    
+    transformed_points = []
+    for point in points:
+        if len(point) == 2:
+            # 2D point, add Z=0
+            point_3d = (point[0], point[1], 0.0)
+        else:
+            point_3d = point
+        
+        # Apply transformation
+        transformed = transform_matrix.transform(point_3d)
+        transformed_points.append((transformed.x, transformed.y, transformed.z))
+    
+    return transformed_points
+
+
+def extract_points_from_entity(entity, verbose=False):
+    """
+    Extract points from various entity types.
+    
+    Args:
+        entity: The DXF entity to extract points from
+        verbose: Enable verbose logging (default: False)
+    """
+    points = []
+    try:
+        dxftype = entity.dxftype()
+        if dxftype == 'LINE':
+            points = [entity.dxf.start.xyz, entity.dxf.end.xyz]
+        elif dxftype == 'LWPOLYLINE':
+            points = [vertex.xyz for vertex in entity.vertices()]
+        elif dxftype in ['POLYLINE', '3DPOLYLINE']:
+            points = [vertex.dxf.location.xyz for vertex in entity.vertices]
+        elif dxftype == 'SPLINE':
+            points = [point.xyz for point in entity.control_points]
+        elif dxftype == 'POINT':
+            points = [entity.dxf.location.xyz]
+        elif dxftype == 'HATCH':
+            # Extract points from hatch boundaries with proper ezdxf API
+            if verbose:
+                log_verbose(f"Processing HATCH with {len(entity.paths)} paths")
+            
+            for path_idx, path in enumerate(entity.paths):
+                path_type = path.__class__.__name__
+                if verbose:
+                    log_verbose(f"  Path {path_idx}: type={path_type}")
+                
+                if path_type == 'PolylinePath':
+                    path_points = []
+                    for vertex in path.vertices:
+                        # Handle different vertex formats
+                        if len(vertex) >= 3:
+                            path_points.append((vertex[0], vertex[1], vertex[2]))
+                        elif len(vertex) >= 2:
+                            path_points.append((vertex[0], vertex[1], 0.0))  # Assume Z=0 for 2D
+                        else:
+                            if verbose:
+                                log_verbose(f"    Warning: vertex has insufficient coordinates: {vertex}")
+                    
+                    points.extend(path_points)
+                    if verbose:
+                        log_verbose(f"    Added {len(path_points)} points from PolylinePath")
+                
+                elif path_type == 'EdgePath':
+                    # Handle edge paths (lines, arcs, etc.)
+                    for edge in path.edges:
+                        edge_type = edge.__class__.__name__
+                        if edge_type == 'LineEdge':
+                            # Add start and end points of line edges
+                            start = edge.start if len(edge.start) >= 3 else (edge.start[0], edge.start[1], 0.0)
+                            end = edge.end if len(edge.end) >= 3 else (edge.end[0], edge.end[1], 0.0)
+                            points.extend([start, end])
+                            if verbose:
+                                log_verbose(f"    Added 2 points from LineEdge")
+                        elif edge_type == 'ArcEdge':
+                            # For arcs, add center and start/end points
+                            center = edge.center if len(edge.center) >= 3 else (edge.center[0], edge.center[1], 0.0)
+                            points.append(center)
+                            if verbose:
+                                log_verbose(f"    Added 1 point from ArcEdge center")
+        
+        if points and verbose:
+            log_verbose(f"Extracted {len(points)} points from {dxftype}")
+            # Show first few points for debugging
+            for i, point in enumerate(points[:3]):
+                log_verbose(f"  Point {i}: {point}")
+            if len(points) > 3:
+                log_verbose(f"  ... and {len(points) - 3} more points")
+            
+    except Exception as e:
+        log(f"Error extracting points from {entity.dxftype()}: {e}", level="WARNING")
+        if verbose:
+            import traceback
+            traceback.print_exc()
+    
+    return points
 
 
 def main(cli_args=None):
@@ -72,9 +267,9 @@ def main(cli_args=None):
         log(f"Failed to read DXF file: {e}", level="ERROR")
         sys.exit(1)
 
-    msp = input_doc.modelspace()
-    entities = list(msp.query("LINE LWPOLYLINE POLYLINE SPLINE 3DPOLYLINE"))
-    log(f"Found {len(entities)} linear entities")
+    # Extract all entities (including from blocks)
+    entities_with_transforms = extract_entities_from_doc(input_doc)
+    log(f"Found {len(entities_with_transforms)} linear entities (including from blocks)")
 
     # ------------------------------------------------------------------
     # 2. Create clean output DXF for error markers only
@@ -88,79 +283,81 @@ def main(cli_args=None):
             output_doc.layers.new(name=layer, dxfattribs={'color': 7})
 
     # ------------------------------------------------------------------
-    # 3. Load and run checks
+    # 3. Load and run standard checks (excluding road_geom)
     # ------------------------------------------------------------------
-    check_params = {
-        'verbose': args.verbose,
-        'max_distance': args.max_dist,
-        'min_distance': args.min_dist,
-        'units_scale': args.scale
-    }
+    standard_checks = [check for check in args.checks if check != "road_geom"]
+    total_issues = 0
+    
+    if standard_checks:
+        check_params = {
+            'verbose': args.verbose,
+            'max_distance': args.max_dist,
+            'min_distance': args.min_dist,
+            'units_scale': args.scale,
+            'zero_tolerance': args.zero_tolerance
+        }
 
-    checks = load_checks(args.checks, check_params)
-    error_count = 0
+        checks = load_checks(standard_checks, check_params)
+        error_count = 0
 
-    for check in checks:
-        log(f"Running {check.__class__.__name__}...")
-        try:
-            for entity in entities:
-                points = []
-                try:
-                    if entity.dxftype() == 'LINE':
-                        points = [entity.dxf.start.xyz, entity.dxf.end.xyz]
-                    elif entity.dxftype() == 'LWPOLYLINE':
-                        points = [vertex.xyz for vertex in entity.vertices()]
-                    elif entity.dxftype() in ['POLYLINE', '3DPOLYLINE']:
-                        points = [vertex.dxf.location.xyz for vertex in entity.vertices]
-                    elif entity.dxftype() == 'SPLINE':
-                        points = [point.xyz for point in entity.control_points]
-                except Exception as e:
-                    if args.verbose:
-                        log(f"Skipping entity {entity.dxftype()}: {e}", level="WARNING")
-                    continue
+        for check in checks:
+            log(f"Running {check.__class__.__name__}...")
+            try:
+                for entity, transform in entities_with_transforms:
+                    points = extract_points_from_entity(entity, verbose=args.verbose)
+                    
+                    if points:
+                        # Transform points if needed
+                        transformed_points = transform_points(points, transform)
+                        check.run(entity, transformed_points, output_msp)
 
-                if points:
-                    check.run(entity, points, output_msp)
+                # Handle any finalize() logic (e.g., UnconnectedCrossingCheck)
+                if hasattr(check, 'finalize'):
+                    check.finalize(output_msp)
 
-            # Handle any finalize() logic (e.g., UnconnectedCrossingCheck)
-            if hasattr(check, 'finalize'):
-                check.finalize(output_msp)
+                error_count += check.get_error_count()
 
-            error_count += check.get_error_count()
+            except Exception as e:
+                log(f"Check {check.__class__.__name__} failed: {e}", level="ERROR")
+                if args.verbose:
+                    import traceback
+                    traceback.print_exc()
 
-        except Exception as e:
-            log(f"Check {check.__class__.__name__} failed: {e}", level="ERROR")
-            if args.verbose:
-                import traceback
-                traceback.print_exc()
+        total_issues += error_count
 
     # ------------------------------------------------------------------
-    # 4. Save only the error markers
-    # ------------------------------------------------------------------
-    output_path = args.output or get_output_path(args.input_file)
-    try:
-        output_doc.saveas(output_path)
-        log(f"Saved error markers only to: {output_path}")
-    except Exception as e:
-        log(f"Failed to save output file: {e}", level="ERROR")
-        sys.exit(1)
-
-    # ------------------------------------------------------------------
-    # 5. Optional Road Geometry Validation
+    # 4. Road Geometry Validation (FIXED VERSION)
     # ------------------------------------------------------------------
     if "road_geom" in args.checks:
         log("\n=== Road Geometry Validation ===")
         reader = DXFReader()
         lines = reader.load_dxf(args.input_file)
+        log(f"Loaded {len(lines)} road lines for geometry validation")
 
         constraints = GeometricConstraints()
+        # Update thresholds from command line args
+        constraints.tolerance_horizontal_deviation = args.road_h_threshold
+        constraints.tolerance_elevation_deviation = args.road_z_threshold
+        
         idealizer = GeometryIdealizer(constraints)
         engine = ComparisonEngine()
 
-        total_issues = 0
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Generate timestamp
-        csv_path = LOG_DIR / f"road_geom_validation_{timestamp}.csv"  # Unique CSV file per run
-        error_dxf_path = LOG_DIR / f"road_geom_errors_{timestamp}.dxf"  # Separate DXF for errors
+        road_issues = 0
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = LOG_DIR / f"road_geom_validation_{timestamp}.csv"
+        error_dxf_path = LOG_DIR / f"road_geom_errors_{timestamp}.dxf"
+
+        # Create separate DXF document for road geometry visualization
+        error_doc = new(config.DXF_VERSION)
+        error_msp = error_doc.modelspace()
+        
+        # Create layers
+        error_layer = "ERROR_ROAD_GEOM"
+        ideal_layer = "IDEAL_ROAD_GEOM"
+        
+        for layer_name, color in [(error_layer, 1), (ideal_layer, 2)]:
+            if layer_name not in error_doc.layers:
+                error_doc.layers.new(name=layer_name, dxfattribs={'color': color})
 
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
@@ -168,72 +365,115 @@ def main(cli_args=None):
                             "ideal_x", "ideal_y", "ideal_z",
                             "horizontal_error", "elevation_error"])
 
-            error_doc = new(config.DXF_VERSION)  # Create new DXF document for errors
-            error_msp = error_doc.modelspace()
-
-            for line in lines:
+            for line_idx, line in enumerate(lines):
+                handle = line.meta.get("handle", f"line_{line_idx}")
+                log(f"Processing line {handle} with {len(line.vertices)} vertices")
+                
+                # Generate ideal geometry
                 ideal = idealizer.idealize(line)
                 report = engine.compare(line, ideal)
+                
+                # Count significant deviations only
+                significant_deviations = [
+                    d for d in report.deviations 
+                    if (d.horizontal_error > constraints.tolerance_horizontal_deviation or 
+                        d.elevation_error > constraints.tolerance_elevation_deviation)
+                ]
+                
+                if args.verbose:
+                    log_verbose(f"  Total deviations: {len(report.deviations)}")
+                    log_verbose(f"  Significant deviations: {len(significant_deviations)}")
+                    log_verbose(f"  Thresholds: h={constraints.tolerance_horizontal_deviation}m, z={constraints.tolerance_elevation_deviation}m")
+                
                 summary = report.summary()
-
                 max_h = summary["max_horizontal"]
                 max_z = summary["max_elevation"]
-                cnt = summary["count"]
-                total_issues += cnt
+                deviation_count = len(significant_deviations)
+                
+                log(f"  Line {handle}: h-dev={max_h:.3f}m, z-dev={max_z:.3f}m, significant issues={deviation_count}")
+                
+                # Only add to output if there are significant issues
+                if deviation_count > 0:
+                    road_issues += deviation_count
+                    
+                    # Add ideal line ONCE (only the corrected geometry)
+                    if len(ideal.vertices) >= 2:
+                        ideal_points = [(v[0], v[1], v[2]) for v in ideal.vertices]
+                        error_msp.add_polyline3d(
+                            ideal_points,
+                            dxfattribs={'layer': ideal_layer, 'color': 2}
+                        )
+                    
+                    # Add error points only for significant deviations (with double-check)
+                    for deviation in significant_deviations:
+                        # Double-check thresholds to be absolutely sure
+                        if (deviation.horizontal_error > constraints.tolerance_horizontal_deviation or 
+                            deviation.elevation_error > constraints.tolerance_elevation_deviation):
+                            
+                            if args.verbose:
+                                log_verbose(f"    Adding error point: h_err={deviation.horizontal_error:.4f}m, z_err={deviation.elevation_error:.4f}m")
+                            
+                            writer.writerow([
+                                handle,
+                                deviation.vertex_index,
+                                *deviation.original,
+                                *deviation.ideal,
+                                deviation.horizontal_error,
+                                deviation.elevation_error,
+                            ])
+                            
+                            # Add error marker
+                            error_msp.add_point(
+                                (deviation.original[0], deviation.original[1], deviation.original[2]),
+                                dxfattribs={
+                                    'layer': error_layer, 
+                                    'color': 1
+                                }
+                            )
+                        elif args.verbose:
+                            log_verbose(f"    Skipping point below threshold: h_err={deviation.horizontal_error:.4f}m, z_err={deviation.elevation_error:.4f}m")
 
-                handle = line.meta.get("handle", "?")
-                log(f"  {handle}  h-dev={max_h:.3f}m  z-dev={max_z:.3f}m  issues={cnt}")
-
-                for deviation in report.deviations:
-                    writer.writerow([
-                        handle,
-                        deviation.vertex_index,
-                        *deviation.original,
-                        *deviation.ideal,
-                        deviation.horizontal_error,
-                        deviation.elevation_error,
-                    ])
-
-                    # Add error markers to the error DXF
-                    error_layer = "ERROR_ROAD_GEOM"
-                    if error_layer not in error_doc.layers:
-                        error_doc.layers.new(name=error_layer, dxfattribs={'color': 7})
-                    error_msp.add_point(deviation.original, dxfattribs={'layer': error_layer})
-
-                    # Add idealized geometry to the error DXF
-                    ideal_layer = "IDEAL_ROAD_GEOM"
-                    if ideal_layer not in error_doc.layers:
-                        error_doc.layers.new(name=ideal_layer, dxfattribs={'color': 2})
-                    error_msp.add_polyline3d([v for v in ideal.vertices], dxfattribs={'layer': ideal_layer})
-
-        log(f"Road geometry validation complete. Total issues: {total_issues}")
+        log(f"Road geometry validation complete. Total significant issues: {road_issues}")
         log(f"Validation results saved to: {csv_path}")
+        total_issues += road_issues
 
-        # Save the error DXF file
-        try:
-            error_doc.saveas(error_dxf_path)
-            log(f"Saved error markers and idealized geometry to: {error_dxf_path}")
-        except Exception as e:
-            log(f"Failed to save error DXF file: {e}", level="ERROR")
-            sys.exit(1)
+        # Save the road geometry visualization DXF
+        if road_issues > 0:
+            try:
+                error_doc.saveas(error_dxf_path)
+                log(f"Saved road geometry visualization to: {error_dxf_path}")
+            except Exception as e:
+                log(f"Failed to save road geometry DXF: {e}", level="ERROR")
+        else:
+            log("No significant road geometry issues found - no visualization DXF created")
     
+    # ------------------------------------------------------------------
+    # 5. Save standard error markers
+    # ------------------------------------------------------------------
+    if standard_checks:
+        output_path = args.output or get_output_path(args.input_file)
+        try:
+            output_doc.saveas(output_path)
+            log(f"Saved standard error markers to: {output_path}")
+        except Exception as e:
+            log(f"Failed to save output file: {e}", level="ERROR")
+            sys.exit(1)
+
     # ------------------------------------------------------------------
     # 6. Summary
     # ------------------------------------------------------------------
     log("\n=== Check Summary ===")
-    for check in checks:
-        log(f"{check.__class__.__name__}: {check.get_error_count()} issue(s)")
+    if standard_checks:
+        for check in checks:
+            log(f"{check.__class__.__name__}: {check.get_error_count()} issue(s)")
 
-    if "road_geom" in args.checks and total_issues == 0:
-        log("No road geometry issues detected.")
+    if "road_geom" in args.checks:
+        log(f"RoadGeometryValidator: {road_issues if 'road_issues' in locals() else 0} significant issue(s)")
 
-    classic_total = sum(c.get_error_count() for c in checks)
-    combined_total = classic_total + (total_issues if "road_geom" in args.checks else 0)
-
-    if combined_total == 0:
-        log("No issues detected at all.")
+    if total_issues == 0:
+        log("No issues detected.")
     else:
-        log(f"Total issues (classic + road): {combined_total}")
+        log(f"Total issues found: {total_issues}")
 
 
 if __name__ == "__main__":
