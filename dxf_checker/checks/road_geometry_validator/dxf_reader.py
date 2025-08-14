@@ -11,7 +11,7 @@ class DXFReader:
 
     def __init__(self,
                  allowed_layers: Optional[List[str]] = None,
-                 allowed_types: List[str] | None = None):
+                 allowed_types: Optional[List[str]] = None):
         self.allowed_layers = set(allowed_layers or [])
         self.allowed_types = set(allowed_types or ["LWPOLYLINE", "POLYLINE", "LINE"])
 
