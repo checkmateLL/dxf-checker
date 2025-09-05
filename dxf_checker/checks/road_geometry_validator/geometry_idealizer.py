@@ -5,33 +5,56 @@ from .geometric_constraints import GeometricConstraints
 
 class GeometryIdealizer:
     """
-    Create an 'ideal' road line that fixes obvious errors while preserving
-    legitimate geometric features like sharp turns, intersections, etc.
+    Create an 'ideal' road line using XY-only analysis.
+    Curvature-based segmentation recognizes tangents, curves, and spiral-like transitions.
     """
 
-    def __init__(self, constraints: GeometricConstraints):
+    def __init__(
+        self,
+        constraints: GeometricConstraints,
+        mode: str = "conservative",
+        k_threshold: float = 8e-4,          # ↑ fewer false "tangents"
+        max_xy_shift: float = 0.08,         # cap how far any point may move (m)
+        tangent_rmse_tol: float = 0.025,    # only straighten if fit is good (m)
+        curve_rmse_tol: float = 0.03,       # circle fit must be this tight (m)
+    ):
+        """mode: 'conservative' or 'aggressive'"""
         self.constraints = constraints
+        self.mode = mode
+        self.k_threshold = k_threshold
+        self.max_xy_shift = max_xy_shift
+        self.tangent_rmse_tol = tangent_rmse_tol
+        self.curve_rmse_tol = curve_rmse_tol
 
     def idealize(self, road_line: RoadLine) -> RoadLine:
         """
-        Create idealized road geometry using conservative approach that preserves
-        legitimate sharp direction changes
+        Idealize horizontal geometry; leave XY mostly intact; smooth Z lightly.
         """
         vertices = road_line.vertices
         if len(vertices) < 3:
             return road_line  # Can't improve lines with < 3 points
             
-        # Step 1: Remove obvious duplicate/near-duplicate points only
         cleaned = self._remove_near_duplicates(vertices)
         if len(cleaned) < 3:
             return RoadLine(cleaned, {**road_line.meta, "idealized": True})
-            
-        # Step 2: Fix only obvious surveying/digitizing errors, preserve intentional geometry
-        error_corrected = self._fix_obvious_errors(cleaned)
-        
-        # Step 3: Light elevation smoothing only (preserve horizontal alignment)
-        final = self._smooth_elevations_only(error_corrected)
-        
+
+        # Curvature-driven segmentation (XY)
+        temp_line = RoadLine(cleaned, road_line.meta)
+        segments = temp_line.segment_by_curvature(k_threshold=self.k_threshold)
+
+        xy_fixed: List[tuple] = [cleaned[0]]
+        for a, b, kind in segments:
+            chunk = cleaned[a:b+1]
+            if len(chunk) < 3:
+                xy_fixed.extend(chunk[1:])
+                continue
+            if kind == "tangent":
+                xy_fixed.extend(self._straighten_tangent(chunk)[1:])
+            else:  # curve
+                xy_fixed.extend(self._regularize_curve(chunk)[1:])
+
+        # Elevation smoothing only (preserve XY)
+        final = self._smooth_elevations_only(xy_fixed)
         return RoadLine(final, {**road_line.meta, "idealized": True})
 
     def _remove_near_duplicates(self, vertices: List[tuple]) -> List[tuple]:
@@ -40,7 +63,7 @@ class GeometryIdealizer:
             return vertices
             
         cleaned = [vertices[0]]
-        min_distance = 0.005  # 5mm minimum distance - very conservative
+        min_distance = 0.01 if self.mode == "aggressive" else 0.005
         
         for i in range(1, len(vertices)):
             prev_pt = cleaned[-1]
@@ -60,31 +83,127 @@ class GeometryIdealizer:
                 
         return cleaned
 
-    def _fix_obvious_errors(self, vertices: List[tuple]) -> List[tuple]:
+    # --- tangent/curve fixes -------------------------------------------
+    def _straighten_tangent(self, pts: List[tuple]) -> List[tuple]:
         """
-        Fix only obvious digitizing errors while preserving intentional geometry.
-        Uses angle analysis to distinguish between errors and legitimate features.
+        Locally straighten using a least-squares line fit in XY.
+        Only apply if RMSE is small; cap per-vertex movement.
         """
-        if len(vertices) < 5:  # Need enough points for context
-            return vertices
-            
-        corrected = [vertices[0]]  # Always keep first point
-        
-        for i in range(1, len(vertices) - 1):
-            curr_pt = vertices[i]
-            
-            # Analyze if this point looks like a digitizing error
-            if self._is_likely_digitizing_error(vertices, i):
-                # Apply minimal correction
-                corrected_pt = self._apply_minimal_correction(vertices, i)
-                corrected.append(corrected_pt)
-            else:
-                # Keep original point (it's likely intentional geometry)
-                corrected.append(curr_pt)
-        
-        corrected.append(vertices[-1])  # Always keep last point
-        return corrected
+        import math
+        if len(pts) < 3:
+            return pts
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        cx = sum(xs) / len(xs)
+        cy = sum(ys) / len(ys)
+        # PCA for direction (2x2 covariance)
+        sxx = sum((x - cx) ** 2 for x in xs)
+        syy = sum((y - cy) ** 2 for y in ys)
+        sxy = sum((x - cx) * (y - cy) for x, y in zip(xs, ys))
+        # principal direction (largest eigenvector)
+        # avoid atan2 for stability when sxy~0
+        theta = 0.5 * math.atan2(2 * sxy, (sxx - syy)) if (sxx != syy or sxy != 0) else 0.0
+        ux, uy = math.cos(theta), math.sin(theta)
+        # projection + RMSE
+        proj = []
+        errs = []
+        for p in pts:
+            vx, vy = p[0] - cx, p[1] - cy
+            t = vx * ux + vy * uy
+            px, py = cx + t * ux, cy + t * uy
+            proj.append((px, py))
+            errs.append(math.hypot(px - p[0], py - p[1]))
+        rmse = math.sqrt(sum(e * e for e in errs) / max(1, len(errs)))
+        if rmse > self.tangent_rmse_tol:
+            # too wiggly to treat as a clean tangent; keep original
+            return pts
+        # cap movement
+        gain = 0.6 if self.mode == "aggressive" else 0.35
+        out = [pts[0]]
+        for (p, q) in zip(pts[1:-1], proj[1:-1]):
+            dx, dy = (q[0] - p[0]) * gain, (q[1] - p[1]) * gain
+            d = math.hypot(dx, dy)
+            if d > self.max_xy_shift:
+                scale = self.max_xy_shift / d
+                dx *= scale
+                dy *= scale
+            out.append((p[0] + dx, p[1] + dy, p[2]))
+        out.append(pts[-1])
+        return out
 
+    def _regularize_curve(self, pts: List[tuple]) -> List[tuple]:
+        """
+        Try circle fit; if good, nudge toward that arc with a displacement cap.
+        Otherwise, leave the curve unchanged.
+        """
+        if len(pts) < 3:
+             return pts
+        
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        n = len(pts)
+        # algebraic circle fit (Kåsa) with simple centering
+        mx, my = sum(xs)/n, sum(ys)/n
+        u = [x - mx for x in xs]
+        v = [y - my for y in ys]
+        Suu = sum(ui*ui for ui in u)
+        Svv = sum(vi*vi for vi in v)
+        Suv = sum(ui*vi for ui,vi in zip(u,v))
+        Suuu = sum(ui*ui*ui for ui in u)
+        Svvv = sum(vi*vi*vi for vi in v)
+        Suvv = sum(ui*vi*vi for ui,vi in zip(u,v))
+        Svuu = sum(vi*ui*ui for ui,vi in zip(u,v))
+        det = 2*(Suu*Svv - Suv*Suv)
+        if abs(det) < 1e-12:
+            return pts  # nearly collinear; don't touch
+        uc = (Svv*(Suuu+Suvv) - Suv*(Svvv+Svuu)) / det
+        vc = (Suu*(Svvv+Svuu) - Suv*(Suuu+Suvv)) / det
+        cx, cy = mx + uc, my + vc
+        r = sum(math.hypot(x-cx, y-cy) for x,y in zip(xs,ys)) / n
+        # residuals
+        resid = [abs(math.hypot(x-cx,y-cy) - r) for x,y in zip(xs,ys)]
+        rmse = math.sqrt(sum(e*e for e in resid)/n)
+        # design/quality gates
+        if rmse > self.curve_rmse_tol:
+            return pts
+        min_R = self.constraints.min_radius_for_design()
+        if r < min_R * 0.8:  # too tight vs design intent → leave as-is
+            return pts
+        # preserve curvature sign
+        def cross(a,b,c):
+            ax, ay = b[0]-a[0], b[1]-a[1]
+            bx, by = c[0]-b[0], c[1]-b[1]
+            return ax*by - ay*bx
+        sgn_data = 0.0
+        for i in range(1, n-1):
+            sgn_data += cross(pts[i-1], pts[i], pts[i+1])
+        # build nudged points toward circle along radial direction with cap
+        base_strength = 0.6 if self.mode == "aggressive" else 0.35
+        out = [pts[0]]
+        for P in pts[1:-1]:
+            rx, ry = P[0]-cx, P[1]-cy
+            d = math.hypot(rx, ry)
+            if d < 1e-9:
+                out.append(P); continue
+            # target point on circle (same angle)
+            tx, ty = cx + r*rx/d, cy + r*ry/d
+            dx, dy = (tx - P[0])*base_strength, (ty - P[1])*base_strength
+            # cap displacement
+            m = math.hypot(dx, dy)
+            if m > self.max_xy_shift:
+                s = self.max_xy_shift / m
+                dx *= s; dy *= s
+            out.append((P[0]+dx, P[1]+dy, P[2]))
+        out.append(pts[-1])
+        # quick sign check—if fit flips turning direction noticeably, bail out
+        sgn_fit = 0.0
+        for i in range(1, n-1):
+            sgn_fit += cross(out[i-1], out[i], out[i+1])
+        if sgn_data*sgn_fit < 0:
+            return pts
+        return out
+
+    # --- legacy helpers (kept; used indirectly in conservative pass) ---
     def _is_likely_digitizing_error(self, vertices: List[tuple], index: int) -> bool:
         """
         Determine if a point is likely a digitizing error vs intentional geometry.
@@ -175,7 +294,7 @@ class GeometryIdealizer:
             
             # Only smooth elevation if deviation is small (likely surveying noise)
             if z_deviation < 0.01:  # 1cm elevation noise
-                smoothing_factor = 0.3  # Light smoothing
+                smoothing_factor = max(0.3, self.constraints.smoothing_factor)
                 new_z = curr_z + smoothing_factor * (expected_z - curr_z)
                 smoothed_pt = (curr_pt[0], curr_pt[1], new_z)
             else:

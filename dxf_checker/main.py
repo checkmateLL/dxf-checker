@@ -339,8 +339,21 @@ def main(cli_args=None):
         constraints.tolerance_horizontal_deviation = args.road_h_threshold
         constraints.tolerance_elevation_deviation = args.road_z_threshold
         
-        idealizer = GeometryIdealizer(constraints)
-        engine = ComparisonEngine()
+        idealizer = GeometryIdealizer(
+            constraints=constraints,
+            mode="conservative",
+            k_threshold=8e-4,        # fewer false tangents
+            max_xy_shift=0.03,       # ≤ 5 cm lateral move cap
+            tangent_rmse_tol=0.02,   # require very straight local fit
+            curve_rmse_tol=0.02,     # only very clean arcs nudged
+        )
+        engine = ComparisonEngine(
+            station_step=5.0,          # 2–5 m is usually stable for edges
+            deadband_h=0.02,           # ignore ≤ 2 cm
+            deadband_z=0.02,
+            min_report_error=0.02,     # don’t log rows under 2 cm
+        )
+
 
         road_issues = 0
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
