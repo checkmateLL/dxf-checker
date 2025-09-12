@@ -333,6 +333,16 @@ def main(cli_args=None):
     else:
         log(f"Total issues found: {total_issues}")
 
+    # Clean up empty verbose file if nothing was written
+    from dxf_checker.logger import verbose_file, verbose_written
+    if verbose_file and not verbose_written:
+        try:
+            if verbose_file.exists():
+                verbose_file.unlink()
+        except Exception as e:
+            log(f"Failed to delete unused verbose report: {e}", level="WARNING")
+
+
 
 if __name__ == "__main__":
     import sys
