@@ -21,6 +21,7 @@ DXF Checker is a command-line tool designed for engineers, architects, and CAD/G
 | **Duplicate Vertices** | Identifies repeated or nearly identical points | < 0.05m apart |
 | **Unconnected Crossings** | Finds lines that cross but don't share vertices | 2D intersection analysis |
 | **Z-Anomalous Vertices** | Detects elevation outliers in 3D data | > 4cm deviation |
+| **Zero Elevation** |  Finds entities with missing or near-zero Z values | ~0m |
 
 ###  **Output Capabilities**
 - **Error Visualization**: Outputs DXF file with error markers on separate layers
@@ -80,6 +81,7 @@ dxf-checker input.dxf -c too_long too_short duplicates crossing z_anomaly
 | `duplicates` | Duplicate Vertices | Repeated points on same entity |
 | `crossing` | Unconnected Crossings | Lines crossing without shared vertices |
 | `z_anomaly` | Z-Anomalous Vertices | Elevation deviations from local trend |
+| `zero_elevation` | Zero Elevation | Entities with missing or zero elevation (Z = 0) |
 
 ### Optional Parameters
 
@@ -137,6 +139,7 @@ The output DXF file contains error markers organized on separate layers:
 | `ERROR_DUPLICATE_VERTS` | Duplicate Vertices | Green (3) | Point at duplicate location |
 | `ERROR_Z_ANOMALY` | Z-Anomalous Vertices | Magenta (6) | Point at anomalous vertex |
 | `ERROR_UNCONNECTED_CROSSINGS` | Unconnected Crossings | Blue (5) | Point at intersection |
+| `ERROR_ZERO_ELEVATION` | Zero Elevation | Orange (30) | Point at centroid of flat geometry |
 
 ### Extended Data
 Error markers include extended data with:
@@ -177,6 +180,7 @@ The tool analyzes these DXF entity types:
 - **Z Anomaly Deviation**: 0.04 meters (4cm)
 - **Vertex Duplicate Tolerance**: 0.0001 meters
 - **Crossing Proximity Tolerance**: 0.01 meters
+- **Zero Elevation Tolerance**: 0.000001 meters
 
 ## Troubleshooting
 

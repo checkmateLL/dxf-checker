@@ -19,8 +19,7 @@ def load_checks(check_names, check_params=None):
         "too_short": ("too_short_check", "TooShortSegmentCheck"),   
         "duplicates": ("duplicate_vertices_check", "DuplicateVerticesCheck"),
         "z_anomaly": ("z_anomalous_vertices_check", "ZAnomalousVerticesCheck"),
-        "crossing": ("crossing_check", "UnconnectedCrossingCheck"),
-        "road_geom": ("road_geometry_validator", "RoadGeometryValidatorCheck"),
+        "crossing": ("crossing_check", "UnconnectedCrossingCheck"),        
         "zero_elevation": ("zero_elevation_check", "ZeroElevationCheck"),
     }
     

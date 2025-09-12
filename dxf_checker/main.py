@@ -14,14 +14,6 @@ from dxf_checker.logger import log, setup_logging, LOG_DIR
 from dxf_checker.utils import load_checks, get_output_path
 from dxf_checker.logger import log_verbose
 
-from dxf_checker.checks.road_geometry_validator import (
-    DXFReader,
-    GeometryIdealizer,
-    ComparisonEngine,
-    GeometricConstraints,
-    ValidationReport,
-)
-
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -52,16 +44,7 @@ def parse_args():
     parser.add_argument(
         "--zero_tolerance", type=float, default=1e-6, 
         help="Tolerance for considering elevation as zero (meters)"
-    )
-    # road geometry specific parameters
-    parser.add_argument(
-        "--road_h_threshold", type=float, default=0.05, 
-        help="Horizontal deviation threshold for road geometry (meters)"
-    )
-    parser.add_argument(
-        "--road_z_threshold", type=float, default=0.03, 
-        help="Elevation deviation threshold for road geometry (meters)"
-    )
+    )    
     return parser.parse_args()
 
 
@@ -324,128 +307,6 @@ def main(cli_args=None):
                     traceback.print_exc()
 
         total_issues += error_count
-
-    # ------------------------------------------------------------------
-    # 4. Road Geometry Validation (FIXED VERSION)
-    # ------------------------------------------------------------------
-    if "road_geom" in args.checks:
-        log("\n=== Road Geometry Validation ===")
-        reader = DXFReader()
-        lines = reader.load_dxf(args.input_file)
-        log(f"Loaded {len(lines)} road lines for geometry validation")
-
-        constraints = GeometricConstraints()
-        # Update thresholds from command line args
-        constraints.tolerance_horizontal_deviation = args.road_h_threshold
-        constraints.tolerance_elevation_deviation = args.road_z_threshold
-        
-        idealizer = GeometryIdealizer(constraints)
-        engine = ComparisonEngine()
-
-        road_issues = 0
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_path = LOG_DIR / f"road_geom_validation_{timestamp}.csv"
-        error_dxf_path = LOG_DIR / f"road_geom_errors_{timestamp}.dxf"
-
-        # Create separate DXF document for road geometry visualization
-        error_doc = new(config.DXF_VERSION)
-        error_msp = error_doc.modelspace()
-        
-        # Create layers
-        error_layer = "ERROR_ROAD_GEOM"
-        ideal_layer = "IDEAL_ROAD_GEOM"
-        
-        for layer_name, color in [(error_layer, 1), (ideal_layer, 2)]:
-            if layer_name not in error_doc.layers:
-                error_doc.layers.new(name=layer_name, dxfattribs={'color': color})
-
-        with open(csv_path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["handle", "vertex_index", "orig_x", "orig_y", "orig_z",
-                            "ideal_x", "ideal_y", "ideal_z",
-                            "horizontal_error", "elevation_error"])
-
-            for line_idx, line in enumerate(lines):
-                handle = line.meta.get("handle", f"line_{line_idx}")
-                log(f"Processing line {handle} with {len(line.vertices)} vertices")
-                
-                # Generate ideal geometry
-                ideal = idealizer.idealize(line)
-                report = engine.compare(line, ideal)
-                
-                # Count significant deviations only
-                significant_deviations = [
-                    d for d in report.deviations 
-                    if (d.horizontal_error > constraints.tolerance_horizontal_deviation or 
-                        d.elevation_error > constraints.tolerance_elevation_deviation)
-                ]
-                
-                if args.verbose:
-                    log_verbose(f"  Total deviations: {len(report.deviations)}")
-                    log_verbose(f"  Significant deviations: {len(significant_deviations)}")
-                    log_verbose(f"  Thresholds: h={constraints.tolerance_horizontal_deviation}m, z={constraints.tolerance_elevation_deviation}m")
-                
-                summary = report.summary()
-                max_h = summary["max_horizontal"]
-                max_z = summary["max_elevation"]
-                deviation_count = len(significant_deviations)
-                
-                log(f"  Line {handle}: h-dev={max_h:.3f}m, z-dev={max_z:.3f}m, significant issues={deviation_count}")
-                
-                # Only add to output if there are significant issues
-                if deviation_count > 0:
-                    road_issues += deviation_count
-                    
-                    # Add ideal line ONCE (only the corrected geometry)
-                    if len(ideal.vertices) >= 2:
-                        ideal_points = [(v[0], v[1], v[2]) for v in ideal.vertices]
-                        error_msp.add_polyline3d(
-                            ideal_points,
-                            dxfattribs={'layer': ideal_layer, 'color': 2}
-                        )
-                    
-                    # Add error points only for significant deviations (with double-check)
-                    for deviation in significant_deviations:
-                        # Double-check thresholds to be absolutely sure
-                        if (deviation.horizontal_error > constraints.tolerance_horizontal_deviation or 
-                            deviation.elevation_error > constraints.tolerance_elevation_deviation):
-                            
-                            if args.verbose:
-                                log_verbose(f"    Adding error point: h_err={deviation.horizontal_error:.4f}m, z_err={deviation.elevation_error:.4f}m")
-                            
-                            writer.writerow([
-                                handle,
-                                deviation.vertex_index,
-                                *deviation.original,
-                                *deviation.ideal,
-                                deviation.horizontal_error,
-                                deviation.elevation_error,
-                            ])
-                            
-                            # Add error marker
-                            error_msp.add_point(
-                                (deviation.original[0], deviation.original[1], deviation.original[2]),
-                                dxfattribs={
-                                    'layer': error_layer, 
-                                    'color': 1
-                                }
-                            )
-                        elif args.verbose:
-                            log_verbose(f"    Skipping point below threshold: h_err={deviation.horizontal_error:.4f}m, z_err={deviation.elevation_error:.4f}m")
-
-        log(f"Road geometry validation complete. Total significant issues: {road_issues}")
-        log(f"Validation results saved to: {csv_path}")
-        total_issues += road_issues
-
-        # Save the road geometry visualization DXF
-        if road_issues > 0:
-            try:
-                error_doc.saveas(error_dxf_path)
-                log(f"Saved road geometry visualization to: {error_dxf_path}")
-            except Exception as e:
-                log(f"Failed to save road geometry DXF: {e}", level="ERROR")
-        else:
-            log("No significant road geometry issues found - no visualization DXF created")
     
     # ------------------------------------------------------------------
     # 5. Save standard error markers
@@ -466,14 +327,21 @@ def main(cli_args=None):
     if standard_checks:
         for check in checks:
             log(f"{check.__class__.__name__}: {check.get_error_count()} issue(s)")
-
-    if "road_geom" in args.checks:
-        log(f"RoadGeometryValidator: {road_issues if 'road_issues' in locals() else 0} significant issue(s)")
-
+    
     if total_issues == 0:
         log("No issues detected.")
     else:
         log(f"Total issues found: {total_issues}")
+
+    # Clean up empty verbose file if nothing was written
+    from dxf_checker.logger import verbose_file, verbose_written
+    if verbose_file and not verbose_written:
+        try:
+            if verbose_file.exists():
+                verbose_file.unlink()
+        except Exception as e:
+            log(f"Failed to delete unused verbose report: {e}", level="WARNING")
+
 
 
 if __name__ == "__main__":
