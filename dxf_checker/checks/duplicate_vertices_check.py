@@ -4,7 +4,7 @@ from dxf_checker.logger import log_verbose
 import math
 
 class DuplicateVerticesCheck(SegmentCheck):
-    def __init__(self, tolerance: float = 0.05, verbose: bool = False):
+    def __init__(self, tolerance: float = 0.05, verbose: bool = False, logger=None):
         super().__init__("DuplicateVertices", f"Vertices closer than {tolerance}m on same entity")
         self.tolerance = tolerance
         self.verbose = verbose
@@ -17,9 +17,9 @@ class DuplicateVerticesCheck(SegmentCheck):
                 dist = self._distance(points[i], points[j])
                 if dist < self.tolerance:
                     self.error_count += 1
-                    if self.verbose:
+                    if self.verbose and self.logger:
                         note = "EXACT duplicate" if dist == 0.0 else f"dist = {dist:.6f}"
-                        log_verbose(f"  *** ERROR: Duplicate-like vertices at {points[i]} & {points[j]} ({note}) ***")
+                        self.logger.log_verbose(f"  *** ERROR: Duplicate-like vertices at {points[i]} & {points[j]} ({note}) ***")
                     self._mark_error(output_msp, points[i])
 
     def _distance(self, a, b):
@@ -39,5 +39,5 @@ class DuplicateVerticesCheck(SegmentCheck):
                 ]
             )
         except Exception as e:
-            if self.verbose:
-                log_verbose(f"    Warning: Could not set extended data: {e}")
+            if self.verbose and self.logger:
+                self.logger.log_verbose(f"    Warning: Could not set extended data: {e}")

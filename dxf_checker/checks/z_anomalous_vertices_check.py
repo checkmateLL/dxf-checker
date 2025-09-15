@@ -4,7 +4,7 @@ from dxf_checker.logger import log_verbose
 import math
 
 class ZAnomalousVerticesCheck(SegmentCheck):
-    def __init__(self, threshold: float = 0.04, verbose: bool = False):
+    def __init__(self, threshold: float = 0.04, verbose: bool = False, logger=None):
         super().__init__("ZAnomalousVertices", f"Z deviation > {threshold}m from local line")
         self.threshold = threshold
         self.verbose = verbose
@@ -26,8 +26,8 @@ class ZAnomalousVerticesCheck(SegmentCheck):
 
             if deviation > self.threshold:
                 self.error_count += 1
-                if self.verbose:
-                    log_verbose(f"  *** ERROR: Z-anomaly at {p_curr}, deviation = {deviation:.4f}m")
+                if self.verbose and self.logger:
+                    self.logger.log_verbose(f"  *** ERROR: Z-anomaly at {p_curr}, deviation = {deviation:.4f}m")
 
                 self._mark_error(output_msp, p_curr, deviation)
 
