@@ -1,13 +1,13 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
-from dxf_checker.logger import log_verbose
 import math
 
 class DuplicateVerticesCheck(SegmentCheck):
-    def __init__(self, tolerance: float = 0.05, verbose: bool = False, logger=None):
+    def __init__(self, tolerance: float = 1e-4, verbose: bool = False, logger=None):
         super().__init__("DuplicateVertices", f"Vertices closer than {tolerance}m on same entity")
         self.tolerance = tolerance
         self.verbose = verbose
+        self.logger = logger
 
     def run(self, entity, points, output_msp):
         for i in range(len(points)):

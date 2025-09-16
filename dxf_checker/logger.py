@@ -1,6 +1,6 @@
-# dxf_checker/logger.py
 from pathlib import Path
 from datetime import datetime
+from .log_cleaner import cleanup_old_logs
 
 class DXFLogger:
     def __init__(self, verbose=False, log_dir="logs", report_dir="reports"):
@@ -39,7 +39,20 @@ class DXFLogger:
                 f.write(message + "\n")
             self.verbose_written = True
 
-    def cleanup(self):
+    def cleanup(self):    
+        # Clean old log files automatically  
+        try:
+            cleanup_results = cleanup_old_logs(
+                log_dir=str(self.log_dir),
+                report_dir=str(self.report_dir), 
+                days_old=7,
+                verbose=False
+            )
+            if cleanup_results['logs_deleted'] > 0 or cleanup_results['reports_deleted'] > 0:
+                self.log(f"Cleaned up {cleanup_results['logs_deleted']} old log files and {cleanup_results['reports_deleted']} old report files")
+        except Exception as e:
+            self.log(f"Warning: Could not clean old log files: {e}", level="WARNING")
+
         # Remove verbose file if nothing was written
         if self.verbose and self.verbose_file and not self.verbose_written:
             try:

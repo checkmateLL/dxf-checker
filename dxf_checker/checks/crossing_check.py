@@ -1,6 +1,5 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
-from dxf_checker.logger import log_verbose
 import math
 from itertools import combinations
 
@@ -10,6 +9,7 @@ class UnconnectedCrossingCheck(SegmentCheck):
         self.tolerance = proximity_tolerance
         self.verbose = verbose
         self.line_segments = []  # [(entity, (p1, p2))]
+        self.logger = logger
 
     def run(self, entity, points, output_msp):
         # Extract segments from this entity

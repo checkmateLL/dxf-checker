@@ -4,7 +4,7 @@ A Python tool for validating DXF segment integrity and detecting geometry issues
 
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
 [![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)
-[![Version](https://img.shields.io/badge/version-2.0.0-green.svg)](https://github.com/checkmatell/dxf-checker)
+[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)](https://github.com/checkmatell/dxf-checker)
 
 ## Overview
 
@@ -36,8 +36,8 @@ DXF Checker is a command-line tool designed for engineers, architects, and CAD/G
 - `ezdxf` library (automatically installed)
 
 ### Install from PyPI (Coming Soon)
-```bash
-pip install dxf-checker
+```python
+# pip install dxf-checker
 ```
 
 ### Install from Source
@@ -96,6 +96,7 @@ dxf-checker input.dxf -c too_long too_short duplicates crossing z_anomaly
 --max_dist METERS         # Maximum segment length (default: 50.0)
 --min_dist METERS         # Minimum segment length (default: 0.05)
 --scale FACTOR           # Scale factor for measurements (default: 1.0)
+--dup_tolerance METERS    # Duplicate vertex tolerance (default: 0.0001)
 ```
 
 ## Examples
@@ -181,6 +182,23 @@ The tool analyzes these DXF entity types:
 - **Vertex Duplicate Tolerance**: 0.0001 meters
 - **Crossing Proximity Tolerance**: 0.01 meters
 - **Zero Elevation Tolerance**: 0.000001 meters
+
+## Log Management
+
+DXF Checker automatically manages log and report files to prevent disk space issues.
+
+### Automatic Cleanup
+- Log files older than **7 days** are automatically deleted after each run
+- Applies to both `logs/` and `reports/` directories
+- Cleanup happens silently unless errors occur
+
+### Manual Cleanup
+```bash
+# Clean up old log files manually
+dxf-checker --cleanup-logs
+
+This will show verbose output of what's being deleted
+```
 
 ## Troubleshooting
 

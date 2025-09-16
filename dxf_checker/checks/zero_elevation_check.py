@@ -14,6 +14,7 @@ class ZeroElevationCheck(SegmentCheck):
         )
         self.tolerance = tolerance
         self.verbose = verbose
+        self.logger = logger
 
     def run(self, entity, points, output_msp):
         """Check each vertex for zero or missing elevation values."""

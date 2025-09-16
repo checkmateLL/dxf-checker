@@ -21,6 +21,10 @@ def parse_args():
         help="List of checks to run. Example: -c too_short too_long"
     )
     parser.add_argument(
+        "--cleanup-logs", action="store_true", 
+        help="Manually clean up log files older than 1 week"
+    )
+    parser.add_argument(
         "-o", "--output", help="Optional path for output DXF file"
     )
     parser.add_argument(
@@ -34,6 +38,10 @@ def parse_args():
     )
     parser.add_argument(
         "--scale", type=float, default=1.0, help="Scale factor for measurements"
+    )
+    parser.add_argument(
+        "--dup_tolerance", type=float, default=config.THRESHOLDS["vertex_duplicate_tol"], 
+        help="Tolerance for duplicate vertex detection (meters)"
     )
     parser.add_argument(
         "--zero_tolerance", type=float, default=1e-6, 
@@ -120,10 +128,7 @@ def extract_entities_from_doc(doc, logger):
 def transform_points(points, transform_matrix):
     """Transform a list of points using the given transformation matrix."""
     # Check if it's an identity matrix by comparing to identity
-    identity = Matrix44()
-    is_identity = transform_matrix == identity
-    
-    if is_identity:
+    if transform_matrix == Matrix44():
         return points
     
     transformed_points = []
@@ -154,8 +159,10 @@ def extract_points_from_entity(entity, logger, verbose=False):
         dxftype = entity.dxftype()
         if dxftype == 'LINE':
             points = [entity.dxf.start.xyz, entity.dxf.end.xyz]
-        elif dxftype == 'LWPOLYLINE':
-            points = [vertex.xyz for vertex in entity.vertices()]
+        elif dxftype == 'LWPOLYLINE':            
+            vertices_2d = list(entity.get_points("xy"))           
+            elevation = getattr(entity.dxf, 'elevation', 0.0)
+            points = [(v[0], v[1], elevation) for v in vertices_2d]
         elif dxftype in ['POLYLINE', '3DPOLYLINE']:
             points = [vertex.dxf.location.xyz for vertex in entity.vertices]
         elif dxftype == 'SPLINE':
@@ -272,10 +279,11 @@ def main(cli_args=None):
             'min_distance': args.min_dist,
             'units_scale': args.scale,
             'zero_tolerance': args.zero_tolerance,
+            'vertex_duplicate_tolerance': args.dup_tolerance,
             'logger': logger
         }
 
-        checks = load_checks(standard_checks, check_params)
+        checks = load_checks(standard_checks, check_params, logger)
         error_count = 0
 
         for check in checks:

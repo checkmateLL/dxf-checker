@@ -71,3 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Type
 - **Major** — due to changes in error counting and marker placement behavior that can affect downstream processing.
+
+## [2.1.0] - 2025-09-16
+### Changed
+- removed road check functionality
+
+### Added
+- Automatic log cleanup of files older than 7 days.

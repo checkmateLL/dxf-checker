@@ -1,14 +1,14 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
 import math
-from dxf_checker.logger import log_verbose
 
 class TooShortSegmentCheck(SegmentCheck):
-    def __init__(self, min_distance: float = 0.05, units_scale: float = 1.0, verbose: bool = False):
+    def __init__(self, min_distance: float = 0.05, units_scale: float = 1.0, verbose: bool = False, logger=None):
         super().__init__("TooShortSegment", f"Segment shorter than {min_distance}m")
         self.min_distance = min_distance  # Default to 5cm
         self.units_scale = units_scale
         self.verbose = verbose
+        self.logger = logger
 
     def run(self, entity, points, output_msp):
         if self.verbose and self.logger:

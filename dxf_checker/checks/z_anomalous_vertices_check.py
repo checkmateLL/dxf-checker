@@ -1,6 +1,5 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
-from dxf_checker.logger import log_verbose
 import math
 
 class ZAnomalousVerticesCheck(SegmentCheck):
@@ -8,6 +7,7 @@ class ZAnomalousVerticesCheck(SegmentCheck):
         super().__init__("ZAnomalousVertices", f"Z deviation > {threshold}m from local line")
         self.threshold = threshold
         self.verbose = verbose
+        self.logger = logger
 
     def run(self, entity, points, output_msp):
         if len(points) < 3:

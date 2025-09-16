@@ -1,6 +1,5 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
-from dxf_checker.logger import log_verbose
 import math
 
 class TooLongSegmentCheck(SegmentCheck):
