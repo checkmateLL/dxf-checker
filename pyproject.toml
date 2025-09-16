@@ -7,7 +7,7 @@ name = "dxf-checker"
 dynamic = ["version"]
 description = "A comprehensive tool for validating DXF segment integrity and detecting geometry issues"
 readme = "README.md"
-license = "MIT"
+license = "LICENSE.md"
 requires-python = ">=3.8"
 authors = [
     { name = "Juliya Lehka", email = "julilya.legkaya@gmail.com" },
@@ -53,11 +53,6 @@ dev = [
     "mypy>=1.0",
     "pre-commit>=3.0",
 ]
-test = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "pytest-mock>=3.10",
-]
 docs = [
     "sphinx>=5.0",
     "sphinx-rtd-theme>=1.2",
@@ -65,11 +60,11 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/checkmatell-dxf-checker"
-Documentation = "https://github.com/yourusername/checkmatell-dxf-checker#readme"
-Repository = "https://github.com/yourusername/checkmatell-dxf-checker"
-"Bug Tracker" = "https://github.com/yourusername/checkmatell-dxf-checker/issues"
-Changelog = "https://github.com/yourusername/checkmatell-dxf-checker/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/checkmateLL/dxf-checker"
+Documentation = "https://github.com/checkmateLL/dxf-checker#readme"
+Repository = "https://github.com/checkmateLL/dxf-checker"
+"Bug Tracker" = "https://github.com/checkmateLL/dxf-checker/issues"
+Changelog = "https://github.com/checkmateLL/dxf-checker/blob/main/CHANGELOG.md"
 
 [project.scripts]
 dxf-checker = "dxf_checker.main:main"
@@ -87,7 +82,7 @@ include = [
     "/tests",
     "/README.md",
     "/CHANGELOG.md",
-    "/LICENSE",
+    "/LICENSE.md",
 ]
 
 # Black code formatting

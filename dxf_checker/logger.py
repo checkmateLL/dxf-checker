@@ -1,47 +1,61 @@
-import os
-import sys
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
+from .log_cleaner import cleanup_old_logs
 
-LOG_DIR = Path("logs")
-VERBOSE_DIR = Path("reports")
+class DXFLogger:
+    def __init__(self, verbose=False, log_dir="logs", report_dir="reports"):
+        self.verbose = verbose
+        self.log_dir = Path(log_dir)
+        self.report_dir = Path(report_dir)
+        self.log_file = None
+        self.verbose_file = None
+        self.verbose_written = False
+        self._setup_files()
 
-log_file = None
-verbose_written = False
-verbose_file = None
+    def _setup_files(self):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_dir.mkdir(exist_ok=True)
+        self.report_dir.mkdir(exist_ok=True)
 
+        self.log_file = self.log_dir / f"log_{timestamp}.txt"
+        with self.log_file.open("w", encoding="utf-8") as f:
+            f.write(f"=== DXF Checker Log ({timestamp}) ===\n\n")
 
-def setup_logging(verbose=False):
-    global log_file, verbose_file
+        if self.verbose:
+            self.verbose_file = self.report_dir / f"verbose_{timestamp}.txt"
+            with self.verbose_file.open("w", encoding="utf-8") as f:
+                f.write(f"=== Verbose Report ({timestamp}) ===\n\n")
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    LOG_DIR.mkdir(exist_ok=True)
-    VERBOSE_DIR.mkdir(exist_ok=True)
+    def log(self, message, level="INFO"):
+        line = f"[{level}] {message}"
+        print(line)
+        if self.log_file:
+            with self.log_file.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
 
-    log_file = LOG_DIR / f"log_{timestamp}.txt"
-    verbose_file = VERBOSE_DIR / f"verbose_{timestamp}.txt" if verbose else None
+    def log_verbose(self, message):
+        if self.verbose_file:
+            with self.verbose_file.open("a", encoding="utf-8") as f:
+                f.write(message + "\n")
+            self.verbose_written = True
 
-    with open(log_file, "w", encoding="utf-8") as f:
-        f.write(f"=== DXF Checker Log ({timestamp}) ===\n\n")
+    def cleanup(self):    
+        # Clean old log files automatically  
+        try:
+            cleanup_results = cleanup_old_logs(
+                log_dir=str(self.log_dir),
+                report_dir=str(self.report_dir), 
+                days_old=7,
+                verbose=False
+            )
+            if cleanup_results['logs_deleted'] > 0 or cleanup_results['reports_deleted'] > 0:
+                self.log(f"Cleaned up {cleanup_results['logs_deleted']} old log files and {cleanup_results['reports_deleted']} old report files")
+        except Exception as e:
+            self.log(f"Warning: Could not clean old log files: {e}", level="WARNING")
 
-    if verbose and verbose_file:
-        with open(verbose_file, "w", encoding="utf-8") as f:
-            f.write(f"=== Verbose Report ({timestamp}) ===\n\n")
-
-
-def log(message: str, level: str = "INFO"):
-    """Write to main log and console"""
-    line = f"[{level}] {message}"
-    print(line)
-    if log_file:
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
-
-
-def log_verbose(message: str):
-    """Write to verbose log only"""
-    global verbose_written
-    if verbose_file:
-        with open(verbose_file, "a", encoding="utf-8") as f:
-            f.write(message + "\n")
-        verbose_written = True
+        # Remove verbose file if nothing was written
+        if self.verbose and self.verbose_file and not self.verbose_written:
+            try:
+                self.verbose_file.unlink()
+            except Exception as e:
+                self.log(f"Failed to delete unused verbose file: {e}", level="WARNING")

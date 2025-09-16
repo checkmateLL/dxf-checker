@@ -23,7 +23,7 @@ ERROR_COLORS = {
 # Default thresholds
 THRESHOLDS = {
     "too_long_segment": 50.0,     # in meters
-    "too_short_segment": 0.01,    # in meters
+    "too_short_segment": 0.05,    # in meters
     "z_anomaly_deviation": 0.04,  # in meters
     "vertex_duplicate_tol": 1e-4, # in meters
     "crossing_proximity_tol": 0.01  # in meters

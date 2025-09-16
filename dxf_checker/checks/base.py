@@ -6,7 +6,7 @@ class SegmentCheck(ABC):
     Abstract base class for all DXF segment checks.
     """
 
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str, logger=None):
         self.name = name
         self.description = description
         self.error_count = 0

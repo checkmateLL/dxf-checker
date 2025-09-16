@@ -1,15 +1,15 @@
 from dxf_checker.checks.base import SegmentCheck
 from dxf_checker.config import ERROR_LAYERS, ERROR_COLORS
-from dxf_checker.logger import log_verbose
 import math
 from itertools import combinations
 
 class UnconnectedCrossingCheck(SegmentCheck):
-    def __init__(self, proximity_tolerance: float = 0.01, verbose: bool = False):
+    def __init__(self, proximity_tolerance: float = 0.01, verbose: bool = False, logger=None):
         super().__init__("UnconnectedCrossing", "Intersecting lines without shared vertex")
         self.tolerance = proximity_tolerance
         self.verbose = verbose
         self.line_segments = []  # [(entity, (p1, p2))]
+        self.logger = logger
 
     def run(self, entity, points, output_msp):
         # Extract segments from this entity
@@ -27,19 +27,9 @@ class UnconnectedCrossingCheck(SegmentCheck):
 
                 if not self._near_any_vertex(intersection, seg1, seg2):
                     self.error_count += 1
-                    if self.verbose:
-                        log_verbose(f"  *** ERROR: Unconnected crossing at {intersection} ***")
+                    if self.verbose and self.logger:
+                        self.logger.log_verbose(f"  *** ERROR: Unconnected crossing at {intersection} ***")
                     self._mark_error(output_msp, intersection)
-
-    def _near_any_vertex(self, pt, seg1, seg2):
-        """
-        Returns True if the intersection point is close to any endpoint of either segment.
-        """
-        for seg in [seg1, seg2]:
-            for vertex in seg:
-                if self._distance_2d(vertex, pt) < self.tolerance:
-                    return True
-        return False
 
     def _segments_intersect_2d(self, seg1, seg2):
         def ccw(A, B, C):
@@ -64,12 +54,15 @@ class UnconnectedCrossingCheck(SegmentCheck):
         return (px, py, pz)
 
     def _near_any_vertex(self, point, seg1, seg2):
+        """
+        Returns True if 'point' is near any endpoint in either segment.
+        """
         for pt in seg1 + seg2:
-            if self._distance_2d(pt, point) < self.tolerance:
+            if self.distance_2d(pt, point) < self.tolerance:
                 return True
         return False
 
-    def _distance_2d(self, p1, p2):
+    def distance_2d(self, p1, p2):
         return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
 
     def _mark_error(self, msp, pt):

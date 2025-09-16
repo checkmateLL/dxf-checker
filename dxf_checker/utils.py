@@ -3,10 +3,10 @@ from pathlib import Path
 from importlib import import_module
 
 from dxf_checker import config
-from dxf_checker.logger import log
 
 
-def load_checks(check_names, check_params=None):
+
+def load_checks(check_names, check_params=None, logger=None):
     """
     Dynamically load check classes based on names passed from CLI.
     """
@@ -25,7 +25,7 @@ def load_checks(check_names, check_params=None):
     
     for name in check_names:
         if name not in check_mapping:
-            log(f"Unknown check '{name}'. Available: {list(check_mapping.keys())}", level="ERROR")
+            logger.log(f"Unknown check '{name}'. Available: {list(check_mapping.keys())}", level="ERROR")
             continue
             
         module_name, class_name = check_mapping[name]
@@ -38,28 +38,40 @@ def load_checks(check_names, check_params=None):
                 check = check_class(
                     max_distance=check_params.get('max_distance', 50.0),
                     units_scale=check_params.get('units_scale', 1.0),
-                    verbose=check_params.get('verbose', False)
+                    verbose=check_params.get('verbose', False),
+                    logger=check_params.get('logger')
                 )
             elif name == "too_short":
                 check = check_class(
                     min_distance=check_params.get('min_distance', 0.05),
                     units_scale=check_params.get('units_scale', 1.0),
-                    verbose=check_params.get('verbose', False)
+                    verbose=check_params.get('verbose', False),
+                    logger=check_params.get('logger')
+                )
+            elif name == "duplicates":
+                check = check_class(
+                    tolerance=check_params.get('vertex_duplicate_tolerance', 1e-4),  # Use config value
+                    verbose=check_params.get('verbose', False),
+                    logger=check_params.get('logger')
                 )
             elif name == "zero_elevation":
                 check = check_class(
                     tolerance=check_params.get('zero_tolerance', 1e-6),
-                    verbose=check_params.get('verbose', False)
+                    verbose=check_params.get('verbose', False),
+                    logger=check_params.get('logger')
                 )
             else:
                 # For other checks, just pass verbose flag for now
-                check = check_class(verbose=check_params.get('verbose', False))
+                check = check_class(
+                    verbose=check_params.get('verbose', False),
+                    logger=check_params.get('logger')
+                    )
             
             checks.append(check)
-            log(f"Loaded check: {class_name}")
+            logger.log(f"Loaded check: {class_name}")
             
         except (ModuleNotFoundError, AttributeError) as e:
-            log(f"Could not load check '{name}': {e}", level="ERROR")
+            logger.log(f"Could not load check '{name}': {e}", level="ERROR")
     
     return checks
 
