@@ -18,7 +18,7 @@ DXF Checker is a command-line tool designed for engineers, architects, and CAD/G
 |------------|-------------|-------------------|
 | **Too Long Segments** | Detects segments longer than specified length | > 50m |
 | **Too Short Segments** | Finds segments shorter than minimum length | < 5cm |
-| **Duplicate Vertices** | Identifies repeated or nearly identical points | < 0.05m apart |
+| **Duplicate Vertices** | Identifies repeated or nearly identical points | < 0.0001m apart |
 | **Unconnected Crossings** | Finds lines that cross but don't share vertices | 2D intersection analysis |
 | **Z-Anomalous Vertices** | Detects elevation outliers in 3D data | > 4cm deviation |
 | **Zero Elevation** |  Finds entities with missing or near-zero Z values | ~0m |
