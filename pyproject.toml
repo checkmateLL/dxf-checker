@@ -7,7 +7,7 @@ name = "dxf-checker"
 dynamic = ["version"]
 description = "A comprehensive tool for validating DXF segment integrity and detecting geometry issues"
 readme = "README.md"
-license = { file = "LICENSE.md" }
+license = { file = "LICENSE.MD" }
 requires-python = ">=3.8"
 authors = [
     { name = "Juliya Lehka", email = "julilya.legkaya@gmail.com" },
